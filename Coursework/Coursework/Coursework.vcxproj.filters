@@ -1,0 +1,62 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="src\App1.cpp" />
+    <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\shaders\light_shader\light_shader.cpp" />
+    <ClCompile Include="src\shaders\shader_utils.cpp" />
+    <ClCompile Include="src\shaders\depth_shader\depth_shader.cpp" />
+    <ClCompile Include="src\shaders\texture_shader\texture_shader.cpp" />
+    <ClCompile Include="src\shaders\shadow_shader\shadow_shader.cpp" />
+    <ClCompile Include="src\shaders\blur_shaders\horizontal_blur\horizontal_blur_shader.cpp" />
+    <ClCompile Include="src\shaders\blur_shaders\vertical_blur\vertical_blur_shader.cpp" />
+    <ClCompile Include="src\entities\terrain.cpp" />
+    <ClCompile Include="src\entities\entity.cpp" />
+    <ClCompile Include="src\shaders\water_shader\water_shader.cpp" />
+    <ClCompile Include="src\improved_framework_classes\custom_camera\CustomCamera.cpp" />
+    <ClCompile Include="src\improved_framework_classes\custom_camera\FreeCamera.cpp" />
+    <ClCompile Include="src\improved_framework_classes\TerrainMesh.cpp" />
+    <ClCompile Include="src\shaders\compute_shaders\generate_terrain_cshader.cpp" />
+    <ClCompile Include="src\shaders\motion_blur_shader\motion_blur_shader.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\App1.h" />
+    <ClInclude Include="src\shaders\light_shader\light_shader.h" />
+    <ClInclude Include="src\shaders\shader_utils.h" />
+    <ClInclude Include="src\shaders\depth_shader\depth_shader.h" />
+    <ClInclude Include="src\shaders\texture_shader\texture_shader.h" />
+    <ClInclude Include="src\shaders\shadow_shader\shadow_shader.h" />
+    <ClInclude Include="src\shaders\blur_shaders\horizontal_blur\horizontal_blur_shader.h" />
+    <ClInclude Include="src\shaders\blur_shaders\vertical_blur\vertical_blur_shader.h" />
+    <ClInclude Include="src\entities\terrain.h" />
+    <ClInclude Include="src\entities\entity.h" />
+    <ClInclude Include="src\shaders\water_shader\water_shader.h" />
+    <ClInclude Include="src\improved_framework_classes\custom_camera\CustomCamera.h" />
+    <ClInclude Include="src\improved_framework_classes\custom_camera\FreeCamera.h" />
+    <ClInclude Include="src\improved_framework_classes\TerrainMesh.h" />
+    <ClInclude Include="src\shaders\compute_shaders\generate_terrain_cshader.h" />
+    <ClInclude Include="src\shaders\motion_blur_shader\motion_blur_shader.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="src\shaders\light_shader\light_ps.hlsl" />
+    <FxCompile Include="src\shaders\light_shader\light_vs.hlsl" />
+    <FxCompile Include="src\shaders\depth_shader\depth_ps.hlsl" />
+    <FxCompile Include="src\shaders\depth_shader\depth_vs.hlsl" />
+    <FxCompile Include="src\shaders\texture_shader\texture_ps.hlsl" />
+    <FxCompile Include="src\shaders\texture_shader\texture_vs.hlsl" />
+    <FxCompile Include="src\shaders\shadow_shader\shadow_ps.hlsl" />
+    <FxCompile Include="src\shaders\shadow_shader\shadow_vs.hlsl" />
+    <FxCompile Include="src\shaders\blur_shaders\horizontal_blur\horizontal_blur_vs.hlsl" />
+    <FxCompile Include="src\shaders\blur_shaders\horizontal_blur\horizontal_blur_ps.hlsl" />
+    <FxCompile Include="src\shaders\blur_shaders\vertical_blur\vertical_blur_vs.hlsl" />
+    <FxCompile Include="src\shaders\blur_shaders\vertical_blur\vertical_blur_ps.hlsl" />
+    <FxCompile Include="src\shaders\water_shader\water_vs.hlsl" />
+    <FxCompile Include="src\shaders\water_shader\water_ps.hlsl" />
+    <FxCompile Include="src\shaders\compute_shaders\generate_terrain_cs.hlsl" />
+    <FxCompile Include="src\shaders\motion_blur_shader\motion_blur_ps.hlsl" />
+    <FxCompile Include="src\shaders\motion_blur_shader\motion_blur_vs.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="terrain_config.txt" />
+  </ItemGroup>
+</Project>
