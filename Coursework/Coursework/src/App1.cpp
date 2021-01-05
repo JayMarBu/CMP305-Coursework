@@ -21,9 +21,11 @@ void App1::init(HINSTANCE hinstance, HWND hwnd, int screenWidth, int screenHeigh
 	initLights();
 	initRenderTextures(screenWidth, screenHeight);
 	initTextures();
-	initEntities();
+	initWorld();
 	initDebug(screenWidth, screenHeight);
 }
+
+#pragma region INIT_METHODS
 
 void App1::initSceneInfo(int screenWidth, int screenHeight)
 {
@@ -59,9 +61,6 @@ void App1::initCam(HWND hwnd, int screenWidth, int screenHeight)
 	cam_.setRotSpeed(50.0f);
 	cam_.setPosition(0.0f, 7.0f, -10.0f);
 
-	prev_cam_pos_ = cam_.getPosition();
-	prev_cam_rot_ = cam_.getRotation();
-
 	cam_.initCascadeMatrices(fov_, aspect_ratio_, SCREEN_NEAR, SCREEN_DEPTH, cascade_info_.cascade_depths);
 }
 
@@ -75,7 +74,7 @@ void App1::initShaders(HWND hwnd)
 	h_blur_shader_ = new HorizontalBlurShader(renderer->getDevice(), hwnd);
 	v_blur_shader_ = new VerticalBlurShader(renderer->getDevice(), hwnd);
 	water_shader_ = new WaterShader(renderer->getDevice(), hwnd);
-	motion_blur_shader_ = new MotionBlurShader(renderer->getDevice(), hwnd);
+	noise_shader_ = new NoiseShader(renderer->getDevice(), hwnd);
 
 	generate_terrain_cs_ = new GenerateTerrainCShader(renderer->getDevice(), hwnd, pow(TERRAIN_SIZE, 2));
 }
@@ -144,7 +143,20 @@ void App1::initRenderTextures(int screenWidth, int screenHeight)
 	render_texture_names_[6].render_texture = ocean_.refraction_texture;
 	render_texture_names_[6].render_type = debug_render_texture_name::RenderType::RenderTarget;
 
-	post_process_texture_ = new RenderTexture(renderer->getDevice(), screenWidth, screenHeight, SCREEN_NEAR, SCREEN_DEPTH);
+	noise_texture_ = new RenderTexture(renderer->getDevice(), screenWidth, screenHeight, SCREEN_NEAR, SCREEN_DEPTH);
+	render_texture_names_[7].name = "noise texture";
+	render_texture_names_[7].render_texture = noise_texture_;
+	render_texture_names_[7].render_type = debug_render_texture_name::RenderType::RenderTarget;
+
+	noise_mesh_ = new OrthoMesh(
+		renderer->getDevice(), renderer->getDeviceContext(),
+		screenWidth, screenWidth
+	);
+
+	noise_texture_custom_ = new NoiseTexture(renderer->getDevice(), screenWidth, screenWidth);
+	render_texture_names_[8].name = "noise texture custom";
+	render_texture_names_[8].render_texture = noise_texture_custom_;
+	render_texture_names_[8].render_type = debug_render_texture_name::RenderType::NoiseTextureCustom;
 }
 
 void App1::initTextures()
@@ -157,18 +169,12 @@ void App1::initTextures()
 	textureMgr->loadTexture(L"water_DuDv", L"res/textures/Water_001_DuDv.png");
 	textureMgr->loadTexture(L"water_normal", L"res/textures/Water_001_NORM.png");
 	textureMgr->loadTexture(L"white", L"res/textures/white.png");
+
+	//noise_texture_ = new NoiseTexture(renderer->getDevice(), s_width_, s_height_);
 }
 
-void App1::initEntities()
+void App1::initWorld()
 {
-	// initialise entities
-	entities_.push_back(gpfw::entity::CreateEntityP(new SphereMesh(renderer->getDevice(), renderer->getDeviceContext()), "test_sphere", textureMgr, L"brick"));
-	gpfw::entity::SetPosition(*entities_[0], 0, 5, 0);
-
-	entities_.push_back(gpfw::entity::CreateEntityP(new SphereMesh(renderer->getDevice(), renderer->getDeviceContext()), "test_sphere_2", textureMgr, L"grid"));
-	gpfw::entity::SetPosition(*entities_[1], 10, 13, -20);
-	gpfw::entity::SetScale(*entities_[1], 2, 2, 2);
-	
 	// initialise terrain
 	int plane_size = gpfw::terrain::getSideLength();
 	gpfw::DeviceInfo d_info;
@@ -176,7 +182,6 @@ void App1::initEntities()
 	d_info.device = renderer->getDevice();
 
 	terrain_ = gpfw::terrain::CreateTerrainChunk(d_info, textureMgr, L"rocks", TERRAIN_SIZE, 100);
-	gpfw::terrain::Generate(terrain_, d_info, generate_terrain_cs_, textureMgr->getTexture(L"terrain_height_map"));
 
 	// initialise ocean
 	ocean_.water_plane = gpfw::entity::CreateEntity(new TerrainMesh(renderer->getDevice(), renderer->getDeviceContext(), 1, 500), "water_plane", textureMgr, nullptr);
@@ -194,11 +199,14 @@ void App1::initEntities()
 void App1::initDebug(int screenWidth, int screenHeight)
 {
 	// initialise debug information
+	float mesh_width = screenWidth / 4;
+	float mesh_height = screenWidth / 4;
+
 	debug_ortho_mesh_ = new OrthoMesh(
 		renderer->getDevice(), renderer->getDeviceContext(),
-		screenWidth / 4, screenHeight / 4,
-		screenWidth / 2 - ((screenWidth / 4) / 2) - 5 ,
-		screenHeight / 2 - ((screenHeight / 4) / 2) - 5 
+		mesh_width, mesh_height,
+		screenWidth / 2 - (mesh_width / 2) - 5 ,
+		screenHeight / 2 - (mesh_height / 2) - 5
 	);
 
 	debug_transform_ = XMMatrixTranslation((float)(-(int)cascade_info_.scene_width-5), 0, 0);
@@ -208,6 +216,7 @@ void App1::initDebug(int screenWidth, int screenHeight)
 	else
 		debug_render_ptr_ = ((RenderTexture*)render_texture_names_[0].render_texture)->getShaderResourceView();
 }
+#pragma endregion
 
 // DECONSTRUCTOR ....................................................................................................................................
 App1::~App1()
@@ -279,12 +288,6 @@ App1::~App1()
 		water_shader_ = nullptr;
 	}
 
-	if (motion_blur_shader_)
-	{
-		delete motion_blur_shader_;
-		motion_blur_shader_ = nullptr;
-	}
-
 	if (generate_terrain_cs_)
 	{
 		delete generate_terrain_cs_;
@@ -320,12 +323,6 @@ App1::~App1()
 	{
 		delete soft_shadow_mask_texture_;
 		soft_shadow_mask_texture_ = nullptr;
-	}
-
-	if (post_process_texture_)
-	{
-		delete post_process_texture_;
-		post_process_texture_ = nullptr;
 	}
 
 	// RELEASE ORTHO MESHES .......................................................................
@@ -388,11 +385,13 @@ bool App1::render()
 	// Generate the view matrix based on the camera's position.
 	cam_.update();
 
+	CreateNoise();
+
 	depthPass();
 	shadowPass();
 	waterPass();
 	scenePass();
-	postProcessPass();
+
 	return true;
 }
 
@@ -454,6 +453,8 @@ void App1::shadowPass()
 	vBlurPass();
 	upSamplePass();
 }
+
+#pragma region SHADOW_MASK_PASS
 
 // RENDER SHADOWS TO MASK TEXTURE
 void App1::maskPass()
@@ -584,6 +585,7 @@ void App1::upSamplePass()
 	renderer->setBackBufferRenderTarget();
 	renderer->resetViewport();
 }
+#pragma endregion
 
 // WATER PASS .......................................................................................................................................
 void App1::waterPass()
@@ -666,8 +668,7 @@ void App1::waterRefractionPass()
 // FINAL SCENE PASS ................................................................................................................................. 
 void App1::scenePass()
 {
-	post_process_texture_->clearRenderTarget(renderer->getDeviceContext(), 0.39f, 0.58f, 0.92f, 1.0f);
-	post_process_texture_->setRenderTarget(renderer->getDeviceContext());
+	renderer->beginScene(0.39f, 0.58f, 0.92f, 1.0f);
 
 	// Get the world, view, projection, and ortho matrices from the camera and Direct3D objects.
 	XMMATRIX worldMatrix = renderer->getWorldMatrix();
@@ -695,8 +696,30 @@ void App1::scenePass()
 	if (render_depth_textures_)
 		drawOrthoMeshes(s_info, debug_render_ptr_);
 
+
 	if (render_cascade_textures_)
 		gpfw::cascade::RenderOrthoMeshes(cascade_info_, texture_shader_, s_info, cam_.getOrthoViewMatrix(), renderer->getOrthoMatrix());
+
+	gui();
+	renderer->endScene();
+}
+
+void App1::CreateNoise()
+{
+	noise_texture_->clearRenderTarget(renderer->getDeviceContext(), 1.f, 0.f, 1.f, 1.0f);
+	noise_texture_->setRenderTarget(renderer->getDeviceContext());
+
+	gpfw::ShaderInfo s_info;
+	s_info.world = renderer->getWorldMatrix();
+	s_info.view = cam_.getOrthoViewMatrix();
+	s_info.projection = noise_texture_->getProjectionMatrix();
+	s_info.d_info.context = renderer->getDeviceContext();
+
+	//noise_mesh_->sendData(renderer->getDeviceContext());
+	//noise_shader_->setShaderParameters(s_info.d_info.context, s_info.world, s_info.view, s_info.projection);
+	//noise_shader_->render(renderer->getDeviceContext(), noise_mesh_->getIndexCount());
+
+	noise_shader_->Render(s_info, noise_mesh_, debug_noise_scale_, XMFLOAT2(noise_offest_[0], noise_offest_[1]));
 
 	renderer->setBackBufferRenderTarget();
 	renderer->resetViewport();
@@ -713,50 +736,6 @@ void App1::drawOrthoMeshes(gpfw::ShaderInfo s_info, ID3D11ShaderResourceView* te
 	debug_ortho_mesh_->sendData(s_info.d_info.context);
 	texture_shader_->setShaderParameters(s_info.d_info.context, s_info.world, orthoViewMatrix, orthoProjMatrix, texture);
 	texture_shader_->render(s_info.d_info.context, debug_ortho_mesh_->getIndexCount());
-
-	
-}
-
-// POST PROCESS PASS ................................................................................................................................
-void App1::postProcessPass()
-{
-	// Clear the scene. (default blue colour)
-	renderer->beginScene(0.39f, 0.58f, 0.92f, 1.0f);
-
-	// Get the world, view, projection, and ortho matrices from the camera and Direct3D objects.
-	XMMATRIX worldMatrix = renderer->getWorldMatrix();
-	XMMATRIX orthoViewMatrix = cam_.getOrthoViewMatrix();
-	XMMATRIX orthoProjMatrix = renderer->getOrthoMatrix();
-
-	gpfw::ShaderInfo s_info;
-
-	s_info.world = worldMatrix;
-	s_info.view = orthoViewMatrix;
-	s_info.projection = orthoProjMatrix;
-	s_info.d_info.context = renderer->getDeviceContext();
-
-	// set direction of blur
-	XMFLOAT2 direction = XMFLOAT2(prev_cam_rot_.x - cam_.getRotation().x, prev_cam_rot_.y - cam_.getRotation().y);
-
-	float x_diff = prev_cam_pos_.x - cam_.getPosition().x;
-	float y_diff = prev_cam_pos_.y - cam_.getPosition().y;
-	float z_diff = prev_cam_pos_.z - cam_.getPosition().z;
-	float right_sign = sqrtf(pow(cam_.getPosition().x - (cam_.getPosition().x + cam_.getRightVector().x), 2) + pow(cam_.getPosition().x - (cam_.getPosition().z + cam_.getRightVector().z), 2));
-	right_sign = gpfw::sign(right_sign);
-
-	direction.x += sqrtf(pow(prev_cam_pos_.x - cam_.getPosition().x, 2) + pow(prev_cam_pos_.z - cam_.getPosition().z, 2))*10*right_sign;
-	direction.y += y_diff * 10;
-	prev_cam_pos_ = cam_.getPosition();
-	prev_cam_rot_ = cam_.getRotation();
-	
-
-	motion_blur_shader_->Render(s_info, post_process_texture_->getShaderResourceView(), upsample_mesh_, direction, XMFLOAT2(s_width_,s_height_), blur_distance_);
-
-	// RENDER IMGUI ...............................................................................
-	gui();
-
-	// Present the rendered scene to the screen.
-	renderer->endScene();
 }
 
 // IMGUI METHODS ....................................................................................................................................
@@ -773,19 +752,34 @@ void App1::gui()
 	// draw camera UI elements
 	cam_.drawGui();
 
-	// LIGHT CONTROLS .............................................................................
-	if (ImGui::CollapsingHeader("Lighting options"))
+	// TERRAIN OPTIONS ............................................................................
+	if (ImGui::CollapsingHeader("Terrain Options"))
 	{
-		ImGui::Indent(10);
+		ImGui::Text("Colour:");
+		ImGui::ColorEdit3("##noise colour", debug_colours_);
 
-		// light diffuse colour
-		float ambient_colour[3] = { lighting_info_.ambient.x, lighting_info_.ambient.y, lighting_info_.ambient.z };
-		ImGui::ColorEdit3("Ambient Colour", ambient_colour);
-		gpfw::light::SetAmbientColour(lighting_info_, ambient_colour[0], ambient_colour[1], ambient_colour[2], 1.0f);
+		if (ImGui::Button("Colour texture"))
+		{
+			noise_texture_custom_->setColour(renderer->getDeviceContext(), debug_colours_[0], debug_colours_[1], debug_colours_[2], 1.0);
+			//noise_texture_custom_->setNoise(renderer->getDeviceContext(), 0.3f);
+		}
+		ImGui::Text("Noise scale:");
+		ImGui::SliderFloat("##noise scale", &debug_noise_scale_, 0.001f, 1.0f);
+		ImGui::Text("Noise offset:");
+		ImGui::SliderFloat2("##noise offset", noise_offest_,  -10.0f, 10.0f);
+		if (ImGui::Button("Noise texture"))
+		{
+			//noise_texture_custom_->setColour(renderer->getDeviceContext(), debug_colours_[0], debug_colours_[1], debug_colours_[2], 1.0);
+			noise_texture_custom_->setNoise(renderer->getDeviceContext(), debug_noise_scale_, XMFLOAT2(noise_offest_[0],noise_offest_[1]));
+		}
 
-		drawLightGui();
-
-		ImGui::Indent(-10);
+		if (ImGui::Button("Generate Terrain Mesh"))
+		{
+			gpfw::DeviceInfo d_info;
+			d_info.context = renderer->getDeviceContext();
+			d_info.device = renderer->getDevice();
+			gpfw::terrain::Generate(terrain_, d_info, generate_terrain_cs_, textureMgr->getTexture(L"terrain_height_map"));
+		}
 	}
 
 	// OCEAN CONTROLS .............................................................................
@@ -824,13 +818,6 @@ void App1::gui()
 		ImGui::SliderFloat("##water reflectivity", &ocean_.reflectivity, 0.0f, 1.0f);
 	}
 
-	// BLUR OPTIONS ...............................................................................
-	if (ImGui::CollapsingHeader("Blur Options"))
-	{
-		ImGui::Text("Blur Distance");
-		ImGui::SliderInt("##blur distance", &blur_distance_, 1.0f, 10.0f);
-	}
-
 
 	// DEBUG CONTROLS .............................................................................
 	if (ImGui::CollapsingHeader("Debug Options"))
@@ -854,8 +841,10 @@ void App1::gui()
 						current_item = render_texture_names_[n].name;
 						if(render_texture_names_[n].render_type == debug_render_texture_name::RenderType::ShadowMap)
 							debug_render_ptr_ = ((ShadowMap*)render_texture_names_[n].render_texture)->getDepthMapSRV();
-						else
+						else if (render_texture_names_[n].render_type == debug_render_texture_name::RenderType::RenderTarget)
 							debug_render_ptr_ = ((RenderTexture*)render_texture_names_[n].render_texture)->getShaderResourceView();
+						else if (render_texture_names_[n].render_type == debug_render_texture_name::RenderType::NoiseTextureCustom)
+							debug_render_ptr_ = ((NoiseTexture*)render_texture_names_[n].render_texture)->getShaderResourceView();
 					}
 					if (is_selected)
 						ImGui::SetItemDefaultFocus();

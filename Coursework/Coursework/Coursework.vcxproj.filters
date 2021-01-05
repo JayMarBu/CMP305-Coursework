@@ -17,7 +17,9 @@
     <ClCompile Include="src\improved_framework_classes\custom_camera\FreeCamera.cpp" />
     <ClCompile Include="src\improved_framework_classes\TerrainMesh.cpp" />
     <ClCompile Include="src\shaders\compute_shaders\generate_terrain_cshader.cpp" />
-    <ClCompile Include="src\shaders\motion_blur_shader\motion_blur_shader.cpp" />
+    <ClCompile Include="src\noise\perlin_noise.cpp" />
+    <ClCompile Include="src\noise\noise_texture.cpp" />
+    <ClCompile Include="src\shaders\noise_shader\noise_shader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\App1.h" />
@@ -35,7 +37,9 @@
     <ClInclude Include="src\improved_framework_classes\custom_camera\FreeCamera.h" />
     <ClInclude Include="src\improved_framework_classes\TerrainMesh.h" />
     <ClInclude Include="src\shaders\compute_shaders\generate_terrain_cshader.h" />
-    <ClInclude Include="src\shaders\motion_blur_shader\motion_blur_shader.h" />
+    <ClInclude Include="src\noise\perlin_noise.h" />
+    <ClInclude Include="src\noise\noise_texture.h" />
+    <ClInclude Include="src\shaders\noise_shader\noise_shader.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="src\shaders\light_shader\light_ps.hlsl" />
@@ -53,10 +57,7 @@
     <FxCompile Include="src\shaders\water_shader\water_vs.hlsl" />
     <FxCompile Include="src\shaders\water_shader\water_ps.hlsl" />
     <FxCompile Include="src\shaders\compute_shaders\generate_terrain_cs.hlsl" />
-    <FxCompile Include="src\shaders\motion_blur_shader\motion_blur_ps.hlsl" />
-    <FxCompile Include="src\shaders\motion_blur_shader\motion_blur_vs.hlsl" />
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="terrain_config.txt" />
+    <FxCompile Include="src\shaders\noise_shader\noise_vs.hlsl" />
+    <FxCompile Include="src\shaders\noise_shader\noise_ps.hlsl" />
   </ItemGroup>
 </Project>

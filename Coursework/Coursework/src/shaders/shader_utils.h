@@ -132,6 +132,7 @@ namespace gpfw
 	void CreateStructuredBuffer(ID3D11Device* d, unsigned int element_size, unsigned int count, void* initData, ID3D11Buffer** buffer, int cpu_flag = D3D11_CPU_ACCESS_WRITE);
 	void CreateBufferSRV(ID3D11Device* d, ID3D11Buffer* buffer, ID3D11ShaderResourceView** out_SRV);
 	void CreateBufferUAV(ID3D11Device* d, ID3D11Buffer* buffer, ID3D11UnorderedAccessView** out_UAV);
+	void CreateTexture2D(ID3D11Device* d);
 
 	ID3D11Buffer* CreateAndCopyDebugBuffer(ID3D11Device* d, ID3D11DeviceContext* dc, ID3D11Buffer* in_buffer);
 
@@ -152,6 +153,7 @@ namespace gpfw
 
 	// UTILITY FUNCTIONS ............................................................................................................................
 	template <typename T> int sign(T val) { return (T(0) < val) - (val < T(0)); }
+	template <typename T> T lerp(T a, T b, T t) { return a + t * (b - a); }
 
 }
 

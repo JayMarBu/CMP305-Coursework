@@ -167,11 +167,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\App1.cpp" />
+    <ClCompile Include="src\noise\noise_texture.cpp" />
+    <ClCompile Include="src\noise\perlin_noise.cpp" />
     <ClCompile Include="src\improved_framework_classes\custom_camera\CustomCamera.cpp" />
     <ClCompile Include="src\improved_framework_classes\custom_camera\FreeCamera.cpp" />
     <ClCompile Include="src\shaders\blur_shaders\horizontal_blur\horizontal_blur_shader.cpp" />
     <ClCompile Include="src\shaders\blur_shaders\vertical_blur\vertical_blur_shader.cpp" />
     <ClCompile Include="src\shaders\compute_shaders\generate_terrain_cshader.cpp" />
+    <ClCompile Include="src\shaders\noise_shader\noise_shader.cpp" />
     <ClCompile Include="src\shaders\shadow_shader\shadow_shader.cpp" />
     <ClCompile Include="src\entities\entity.cpp" />
     <ClCompile Include="src\Main.cpp" />
@@ -181,16 +184,18 @@
     <ClCompile Include="src\shaders\texture_shader\texture_shader.cpp" />
     <ClCompile Include="src\entities\terrain.cpp" />
     <ClCompile Include="src\improved_framework_classes\TerrainMesh.cpp" />
-    <ClCompile Include="src\shaders\motion_blur_shader\motion_blur_shader.cpp" />
     <ClCompile Include="src\shaders\water_shader\water_shader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\App1.h" />
+    <ClInclude Include="src\noise\noise_texture.h" />
+    <ClInclude Include="src\noise\perlin_noise.h" />
     <ClInclude Include="src\improved_framework_classes\custom_camera\CustomCamera.h" />
     <ClInclude Include="src\improved_framework_classes\custom_camera\FreeCamera.h" />
     <ClInclude Include="src\shaders\blur_shaders\horizontal_blur\horizontal_blur_shader.h" />
     <ClInclude Include="src\shaders\blur_shaders\vertical_blur\vertical_blur_shader.h" />
     <ClInclude Include="src\shaders\compute_shaders\generate_terrain_cshader.h" />
+    <ClInclude Include="src\shaders\noise_shader\noise_shader.h" />
     <ClInclude Include="src\shaders\shadow_shader\shadow_shader.h" />
     <ClInclude Include="src\entities\entity.h" />
     <ClInclude Include="src\shaders\depth_shader\depth_shader.h" />
@@ -199,7 +204,6 @@
     <ClInclude Include="src\shaders\texture_shader\texture_shader.h" />
     <ClInclude Include="src\entities\terrain.h" />
     <ClInclude Include="src\improved_framework_classes\TerrainMesh.h" />
-    <ClInclude Include="src\shaders\motion_blur_shader\motion_blur_shader.h" />
     <ClInclude Include="src\shaders\water_shader\water_shader.h" />
   </ItemGroup>
   <ItemGroup>
@@ -257,21 +261,19 @@
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)res\shaders\%(Filename).cso</ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%/res/shaders/(Filename).cso</ObjectFileOutput>
     </FxCompile>
-    <FxCompile Include="src\shaders\motion_blur_shader\motion_blur_ps.hlsl">
+    <FxCompile Include="src\shaders\noise_shader\noise_ps.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)res\shaders\%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%/res/shaders/(Filename).cso</ObjectFileOutput>
     </FxCompile>
-    <FxCompile Include="src\shaders\motion_blur_shader\motion_blur_vs.hlsl">
+    <FxCompile Include="src\shaders\noise_shader\noise_vs.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)res\shaders\%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%/res/shaders/(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <FxCompile Include="src\shaders\shadow_shader\shadow_ps.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
@@ -361,9 +363,6 @@
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)res\shaders\%(Filename).cso</ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%/res/shaders/(Filename).cso</ObjectFileOutput>
     </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="terrain_config.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

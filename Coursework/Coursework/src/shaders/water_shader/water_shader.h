@@ -61,5 +61,3 @@ private:
 	ID3D11Buffer* sceneBuffer;
 	ID3D11SamplerState* sampleState;
 };
-
-#pragma once

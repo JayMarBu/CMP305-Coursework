@@ -12,14 +12,14 @@
 #include "shaders/blur_shaders/horizontal_blur/horizontal_blur_shader.h"
 #include "shaders/blur_shaders/vertical_blur/vertical_blur_shader.h"
 #include "shaders/water_shader/water_shader.h"
-#include "shaders/motion_blur_shader/motion_blur_shader.h"
+#include "shaders/noise_shader/noise_shader.h"
 #include "shaders/compute_shaders/generate_terrain_cshader.h"
 #include "imGuIZMO.quat/imGuIZMOquat.h"
 #include "ImGuizmo-master/ImGuizmo.h"
 #include "improved_framework_classes/TerrainMesh.h"
 #include "entities/entity.h"
 #include "entities/terrain.h"
-
+#include "noise/noise_texture.h"
 
 
 class App1 : public BaseApplication
@@ -41,7 +41,7 @@ protected:
 	void initLights();
 	void initRenderTextures(int screenWidth, int screenHeight);
 	void initTextures();
-	void initEntities();
+	void initWorld();
 	void initDebug(int screenWidth, int screenHeight);
 
 	// RENDER METHODS ...............................................................................................................................
@@ -51,6 +51,8 @@ protected:
 	void shadowPass();
 	void waterPass();
 	void scenePass();
+
+	void CreateNoise();
 
 	void maskPass();
 	void downScalePass();
@@ -62,8 +64,6 @@ protected:
 	void waterRefractionPass();
 
 	void drawOrthoMeshes(gpfw::ShaderInfo s_info, ID3D11ShaderResourceView* texture);
-
-	void postProcessPass();
 
 	// GUI METHODS ..................................................................................................................................
 	void gui();
@@ -86,7 +86,7 @@ private:
 	HorizontalBlurShader* h_blur_shader_;
 	VerticalBlurShader* v_blur_shader_;
 	WaterShader* water_shader_;
-	MotionBlurShader* motion_blur_shader_;
+	NoiseShader* noise_shader_;
 
 	GenerateTerrainCShader* generate_terrain_cs_;
 
@@ -96,7 +96,7 @@ private:
 	RenderTexture* h_blur_texture_;
 	RenderTexture* v_blur_texture_;
 	RenderTexture* soft_shadow_mask_texture_;
-	RenderTexture* post_process_texture_;
+	RenderTexture* noise_texture_;
 
 	// RENDER DATA ..................................................................................................................................
 	gpfw::LightingInfo lighting_info_;
@@ -111,15 +111,14 @@ private:
 
 	OrthoMesh* downsample_mesh_;
 	OrthoMesh* upsample_mesh_;
+	OrthoMesh* noise_mesh_;
 
 	float fov_;
 	float aspect_ratio_;
 	float s_width_;
 	float s_height_;
 
-	XMFLOAT3 prev_cam_pos_;
-	XMFLOAT3 prev_cam_rot_;
-	int blur_distance_ = 1;
+	NoiseTexture* noise_texture_custom_;
 
 	// DEBUG DATA ...................................................................................................................................
 	ID3D11ShaderResourceView* debug_render_ptr_;
@@ -134,7 +133,8 @@ private:
 		enum RenderType
 		{
 			RenderTarget,
-			ShadowMap
+			ShadowMap,
+			NoiseTextureCustom
 		};
 
 		const char* name;
@@ -143,7 +143,11 @@ private:
 		RenderType render_type;
 	};
 
-	debug_render_texture_name render_texture_names_[7];
+	float debug_colours_[3];
+	float noise_offest_[2] = {0,0};
+	float debug_noise_scale_ = 1.0f;
+
+	debug_render_texture_name render_texture_names_[9];
 };
 
 #endif

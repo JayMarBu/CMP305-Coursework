@@ -4,6 +4,7 @@
 #include "shaders/compute_shaders/generate_terrain_cshader.h"
 #include "shaders/shader_utils.h"
 #include "improved_framework_classes/TerrainMesh.h"
+#include "noise/perlin_noise.h"
 
 #define TERRAIN_SIZE 256
 
@@ -58,5 +59,7 @@ namespace gpfw
 		// NON-TRIVIAL GETTER METHODS .............................................................
 		inline XMMATRIX GetTransformMatrix(TerrainChunk& t) { return XMMatrixTranslation(t.position.x, t.position.y, t.position.z); }
 		inline ID3D11ShaderResourceView* GetTexture(TerrainChunk& t) { return t.texture_manager->getTexture(t.texture); }
+
+		// NOISE FUNCTIONS ........................................................................
 	}
 }
