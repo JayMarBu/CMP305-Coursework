@@ -5,7 +5,20 @@ SamplerState perm_sampler : register(s0);
 cbuffer NoiseParameters : register(b0)
 {
 	//16*10 bytes
-	float2 octave_offsets[10];
+	float2 octave_offsets_0;
+	float2 octave_offsets_1;
+	
+	float2 octave_offsets_2;
+	float2 octave_offsets_3;
+	
+	float2 octave_offsets_4;
+	float2 octave_offsets_5;
+	
+	float2 octave_offsets_6;
+	float2 octave_offsets_7;
+	
+	float2 octave_offsets_8;
+	float2 octave_offsets_9;
 	
 	// 16 bytes
 	float2 offset;
@@ -83,6 +96,24 @@ float inoise(float2 p)
 // MAIN FUNCTION ....................................................................................................................................
 float4 main(InputType input) : SV_TARGET
 {
+	float2 octave_offsets[10] =
+	{
+		octave_offsets_0,
+		octave_offsets_1,
+	
+		octave_offsets_2,
+		octave_offsets_3,
+	
+		octave_offsets_4,
+		octave_offsets_5,
+	
+		octave_offsets_6,
+		octave_offsets_7,
+	
+		octave_offsets_8,
+		octave_offsets_9
+	};
+	
 	// create normalised device coordinates
 	float2 ndc;
 	ndc.x = (((input.screen_pos.x / input.screen_pos.w) / 2) + 0.5);

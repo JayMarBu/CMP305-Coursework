@@ -12,7 +12,20 @@ class NoiseShader : public BaseShader
 public:
 	struct ParametersInputType
 	{
-		XMFLOAT2 octave_offsets[10];
+		XMFLOAT2 octave_offsets_0;
+		XMFLOAT2 octave_offsets_1;
+
+		XMFLOAT2 octave_offsets_2;
+		XMFLOAT2 octave_offsets_3;
+
+		XMFLOAT2 octave_offsets_4;
+		XMFLOAT2 octave_offsets_5;
+
+		XMFLOAT2 octave_offsets_6;
+		XMFLOAT2 octave_offsets_7;
+
+		XMFLOAT2 octave_offsets_8;
+		XMFLOAT2 octave_offsets_9;
 		XMFLOAT2 offset;
 		float scale;
 		int octaves;
@@ -32,7 +45,6 @@ public:
 	void Render(gpfw::ShaderInfo s_info, OrthoMesh* o_mesh, NoiseParameters n_params);
 
 private:
-
 	void initShader(const wchar_t* vs, const wchar_t* ps);
 
 private:

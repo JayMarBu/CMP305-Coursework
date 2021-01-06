@@ -76,8 +76,17 @@ void NoiseShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const 
 	ParametersInputType* noisePtr;
 	deviceContext->Map(noiseBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 	noisePtr = (ParametersInputType*)mappedResource.pData;
-	for (int i = 0; i < 10; i++)
-		noisePtr->octave_offsets[i] = n_params.octave_offsets[i];
+	noisePtr->octave_offsets_0 = n_params.octave_offsets[0];
+	noisePtr->octave_offsets_1 = n_params.octave_offsets[1];
+	noisePtr->octave_offsets_2 = n_params.octave_offsets[2];
+	noisePtr->octave_offsets_3 = n_params.octave_offsets[3];
+	noisePtr->octave_offsets_4 = n_params.octave_offsets[4];
+	noisePtr->octave_offsets_5 = n_params.octave_offsets[5];
+	noisePtr->octave_offsets_6 = n_params.octave_offsets[6];
+	noisePtr->octave_offsets_7 = n_params.octave_offsets[7];
+	noisePtr->octave_offsets_8 = n_params.octave_offsets[8];
+	noisePtr->octave_offsets_9 = n_params.octave_offsets[9];
+
 	noisePtr->offset = XMFLOAT2(n_params.offset[0], n_params.offset[1]);
 	noisePtr->scale = n_params.scale;
 	noisePtr->octaves = n_params.octaves;
