@@ -63,6 +63,12 @@ void NoiseShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const 
 	noisePtr->padding = 0;
 	deviceContext->Unmap(noiseBuffer, 0);
 	deviceContext->PSSetConstantBuffers(0, 1, &noiseBuffer);
+
+	deviceContext->PSSetShaderResources(0, 1, &perm_srv_);
+	deviceContext->PSSetShaderResources(1, 1, &grad_srv_);
+
+	deviceContext->PSSetSamplers(0, 1, &perm_sampler_);
+	deviceContext->PSSetSamplers(0, 0, &grad_sampler_);
 }
 
 void NoiseShader::Render(gpfw::ShaderInfo s_info, OrthoMesh* o_mesh, float scale, XMFLOAT2 offset)
@@ -74,12 +80,26 @@ void NoiseShader::Render(gpfw::ShaderInfo s_info, OrthoMesh* o_mesh, float scale
 
 void NoiseShader::initShader(const wchar_t* vs, const wchar_t* ps)
 {
+	// buffer descriptions
 	D3D11_BUFFER_DESC matrixBufferDesc;
 	D3D11_BUFFER_DESC noiseBufferDesc;
+
+	// texture & sampler descriptions
+	D3D11_TEXTURE1D_DESC perm_tex_desc;
+	D3D11_SHADER_RESOURCE_VIEW_DESC perm_srv_desc;
+	D3D11_SAMPLER_DESC perm_sampler_desc;
+
+	D3D11_TEXTURE1D_DESC grad_tex_desc;
+	D3D11_SHADER_RESOURCE_VIEW_DESC grad_srv_desc;
+	D3D11_SAMPLER_DESC grad_sampler_desc;
+
+	HRESULT result;
 
 	// Load (+ compile) shader files
 	loadVertexShader(vs);
 	loadPixelShader(ps);
+
+	// CONSTANT BUFFER INITIALISATION ...........................................................................................
 
 	// Setup the description of the dynamic matrix constant buffer that is in the vertex shader.
 	matrixBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
@@ -88,10 +108,9 @@ void NoiseShader::initShader(const wchar_t* vs, const wchar_t* ps)
 	matrixBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	matrixBufferDesc.MiscFlags = 0;
 	matrixBufferDesc.StructureByteStride = 0;
-
-	// Create the constant buffer pointer so we can access the vertex shader constant buffer from within this class.
 	renderer->CreateBuffer(&matrixBufferDesc, NULL, &matrixBuffer);
 
+	// Setup the description of the parameters constant buffer
 	noiseBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 	noiseBufferDesc.ByteWidth = sizeof(ParametersInputType);
 	noiseBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -99,5 +118,116 @@ void NoiseShader::initShader(const wchar_t* vs, const wchar_t* ps)
 	noiseBufferDesc.MiscFlags = 0;
 	noiseBufferDesc.StructureByteStride = 0;
 	renderer->CreateBuffer(&noiseBufferDesc, NULL, &noiseBuffer);
+
+	// GRADIENT TEXTURE INITIALISATION ..........................................................................................
+
+	ZeroMemory(&grad_tex_desc, sizeof(grad_tex_desc));
+
+	float g[16 * 3] = {
+			1,1,0,    -1,1,0,    1,-1,0,    -1,-1,0,
+			1,0,1,    -1,0,1,    1,0,-1,    -1,0,-1,
+			0,1,1,    0,-1,1,    0,1,-1,    0,-1,-1,
+			1,1,0,    0,-1,1,    -1,1,0,    0,-1,-1,
+	};
+
+	D3D11_SUBRESOURCE_DATA grad_init_data;
+	grad_init_data.pSysMem = g;
+
+	// Setup the texture description.
+	grad_tex_desc.Width = 16;
+	grad_tex_desc.MipLevels = 1;
+	grad_tex_desc.ArraySize = 1;
+	grad_tex_desc.Format = DXGI_FORMAT_R32G32B32_FLOAT;
+	grad_tex_desc.Usage = D3D11_USAGE_DEFAULT;
+	grad_tex_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	grad_tex_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	grad_tex_desc.MiscFlags = 0;
+	// Create the render target texture.
+	result = renderer->CreateTexture1D(&grad_tex_desc, &grad_init_data, &grad_texture_);
+
+	// Setup the description of the shader resource view.
+	grad_srv_desc.Format = grad_tex_desc.Format;
+	grad_srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
+	grad_srv_desc.Texture2D.MostDetailedMip = 0;
+	grad_srv_desc.Texture2D.MipLevels = 1;
+	// Create the shader resource view.
+	result = renderer->CreateShaderResourceView(grad_texture_, &grad_srv_desc, &grad_srv_);
+
+	// Create a texture sampler state description.
+	perm_sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+	perm_sampler_desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	perm_sampler_desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	perm_sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	perm_sampler_desc.MipLODBias = 0.0f;
+	perm_sampler_desc.MaxAnisotropy = 1;
+	perm_sampler_desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+	perm_sampler_desc.MinLOD = 0;
+	perm_sampler_desc.MaxLOD = D3D11_FLOAT32_MAX;
+
+	// Create the texture sampler state.
+	renderer->CreateSamplerState(&perm_sampler_desc, &perm_sampler_);
+
+	// PERMUTATION TEXTURE INITIALISATION .......................................................................................
+
+	ZeroMemory(&perm_tex_desc, sizeof(perm_tex_desc));
+
+	float p[256] = { 151,160,137,91,90,15,
+		131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
+		190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
+		88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
+		77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,
+		102,143,54, 65,25,63,161, 1,216,80,73,209,76,132,187,208, 89,18,169,200,196,
+		135,130,116,188,159,86,164,100,109,198,173,186, 3,64,52,217,226,250,124,123,
+		5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,
+		223,183,170,213,119,248,152, 2,44,154,163, 70,221,153,101,155,167, 43,172,9,
+		129,22,39,253, 19,98,108,110,79,113,224,232,178,185, 112,104,218,246,97,228,
+		251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
+		49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
+		138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180 
+	};
+
+	for (int i = 0; i < 256; i++)
+	{
+		p[i] = p[i] / 255;
+	}
+
+	D3D11_SUBRESOURCE_DATA perm_init_data;
+	perm_init_data.pSysMem = p;
+	perm_init_data.SysMemPitch = 0;
+
+	// Setup the texture description.
+	perm_tex_desc.Width = 256;
+	perm_tex_desc.MipLevels = 1;
+	perm_tex_desc.ArraySize = 1;
+	perm_tex_desc.Format = DXGI_FORMAT_R32_FLOAT;
+	perm_tex_desc.Usage = D3D11_USAGE_DEFAULT;
+	//perm_tex_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	perm_tex_desc.CPUAccessFlags = 0;
+	perm_tex_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	perm_tex_desc.MiscFlags = 0;
+	// Create the render target texture.
+	result = renderer->CreateTexture1D(&perm_tex_desc, &perm_init_data, &perm_texture_);
+
+	// Setup the description of the shader resource view.
+	perm_srv_desc.Format = perm_tex_desc.Format;
+	perm_srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
+	perm_srv_desc.Texture2D.MostDetailedMip = 0;
+	perm_srv_desc.Texture2D.MipLevels = 1;
+	// Create the shader resource view.
+	result = renderer->CreateShaderResourceView(perm_texture_, &perm_srv_desc, &perm_srv_);
+
+	// Create a texture sampler state description.
+	grad_sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+	grad_sampler_desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	grad_sampler_desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	grad_sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	grad_sampler_desc.MipLODBias = 0.0f;
+	grad_sampler_desc.MaxAnisotropy = 1;
+	grad_sampler_desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+	grad_sampler_desc.MinLOD = 0;
+	grad_sampler_desc.MaxLOD = D3D11_FLOAT32_MAX;
+
+	// Create the texture sampler state.
+	renderer->CreateSamplerState(&grad_sampler_desc, &grad_sampler_);
 }
 

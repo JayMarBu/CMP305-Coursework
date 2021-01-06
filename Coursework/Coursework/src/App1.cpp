@@ -715,10 +715,6 @@ void App1::CreateNoise()
 	s_info.projection = noise_texture_->getProjectionMatrix();
 	s_info.d_info.context = renderer->getDeviceContext();
 
-	//noise_mesh_->sendData(renderer->getDeviceContext());
-	//noise_shader_->setShaderParameters(s_info.d_info.context, s_info.world, s_info.view, s_info.projection);
-	//noise_shader_->render(renderer->getDeviceContext(), noise_mesh_->getIndexCount());
-
 	noise_shader_->Render(s_info, noise_mesh_, debug_noise_scale_, XMFLOAT2(noise_offest_[0], noise_offest_[1]));
 
 	renderer->setBackBufferRenderTarget();
