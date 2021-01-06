@@ -1,14 +1,17 @@
 #pragma once
 
+// Improved Perlin Noise Singleton class
 class PerlinNoise
 {
 public:
-	PerlinNoise();
+	PerlinNoise() {}
+	PerlinNoise(PerlinNoise&) = delete;
 	~PerlinNoise();
 
-	static float noise(float x, float y);
+	static void init();
+	static PerlinNoise& get();
 
-	//static int* p() { return get().p; }
+	static float noise(float x, float y);
 
 private:
 	static float fade(float t);

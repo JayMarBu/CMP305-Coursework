@@ -22,6 +22,24 @@ NoiseShader::~NoiseShader()
 		noiseBuffer = 0;
 	}
 
+	if (perm_texture_)
+	{
+		perm_texture_->Release();
+		perm_texture_ = 0;
+	}
+
+	if (perm_srv_)
+	{
+		perm_srv_->Release();
+		perm_srv_ = 0;
+	}
+
+	if (perm_sampler_)
+	{
+		perm_sampler_->Release();
+		perm_sampler_ = 0;
+	}
+
 	// Release the layout.
 	if (layout)
 	{
@@ -33,7 +51,7 @@ NoiseShader::~NoiseShader()
 	BaseShader::~BaseShader();
 }
 
-void NoiseShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const XMMATRIX& world, const XMMATRIX& view, const XMMATRIX& projection, float scale, XMFLOAT2 offset)
+void NoiseShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const XMMATRIX& world, const XMMATRIX& view, const XMMATRIX& projection, NoiseParameters n_params)
 {
 	HRESULT result;
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
@@ -58,23 +76,35 @@ void NoiseShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const 
 	ParametersInputType* noisePtr;
 	deviceContext->Map(noiseBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 	noisePtr = (ParametersInputType*)mappedResource.pData;
-	noisePtr->offset = offset;
-	noisePtr->scale = scale;
-	noisePtr->padding = 0;
+	noisePtr->octave_offsets_0 = n_params.octave_offsets[0];
+	noisePtr->octave_offsets_1 = n_params.octave_offsets[1];
+	noisePtr->octave_offsets_2 = n_params.octave_offsets[2];
+	noisePtr->octave_offsets_3 = n_params.octave_offsets[3];
+	noisePtr->octave_offsets_4 = n_params.octave_offsets[4];
+	noisePtr->octave_offsets_5 = n_params.octave_offsets[5];
+	noisePtr->octave_offsets_6 = n_params.octave_offsets[6];
+	noisePtr->octave_offsets_7 = n_params.octave_offsets[7];
+	noisePtr->octave_offsets_8 = n_params.octave_offsets[8];
+	noisePtr->octave_offsets_9 = n_params.octave_offsets[9];
+
+	noisePtr->offset = XMFLOAT2(n_params.offset[0], n_params.offset[1]);
+	noisePtr->scale = n_params.scale;
+	noisePtr->octaves = n_params.octaves;
+	noisePtr->persistance = n_params.persistance;
+	noisePtr->lacunarity = n_params.lacunarity;
+	noisePtr->padding = XMFLOAT2(0,0);
 	deviceContext->Unmap(noiseBuffer, 0);
-	deviceContext->PSSetConstantBuffers(0, 1, &noiseBuffer);
+	deviceContext->PSSetConstantBuffers(0, 2, &noiseBuffer);
 
 	deviceContext->PSSetShaderResources(0, 1, &perm_srv_);
-	deviceContext->PSSetShaderResources(1, 1, &grad_srv_);
 
 	deviceContext->PSSetSamplers(0, 1, &perm_sampler_);
-	deviceContext->PSSetSamplers(0, 0, &grad_sampler_);
 }
 
-void NoiseShader::Render(gpfw::ShaderInfo s_info, OrthoMesh* o_mesh, float scale, XMFLOAT2 offset)
+void NoiseShader::Render(gpfw::ShaderInfo s_info, OrthoMesh* o_mesh, NoiseParameters n_params)
 {
 	o_mesh->sendData(s_info.d_info.context);
-	setShaderParameters(s_info.d_info.context, s_info.world, s_info.view, s_info.projection, scale, offset);
+	setShaderParameters(s_info.d_info.context, s_info.world, s_info.view, s_info.projection, n_params);
 	render(s_info.d_info.context, o_mesh->getIndexCount());
 }
 
@@ -119,54 +149,6 @@ void NoiseShader::initShader(const wchar_t* vs, const wchar_t* ps)
 	noiseBufferDesc.StructureByteStride = 0;
 	renderer->CreateBuffer(&noiseBufferDesc, NULL, &noiseBuffer);
 
-	// GRADIENT TEXTURE INITIALISATION ..........................................................................................
-
-	ZeroMemory(&grad_tex_desc, sizeof(grad_tex_desc));
-
-	float g[16 * 3] = {
-			1,1,0,    -1,1,0,    1,-1,0,    -1,-1,0,
-			1,0,1,    -1,0,1,    1,0,-1,    -1,0,-1,
-			0,1,1,    0,-1,1,    0,1,-1,    0,-1,-1,
-			1,1,0,    0,-1,1,    -1,1,0,    0,-1,-1,
-	};
-
-	D3D11_SUBRESOURCE_DATA grad_init_data;
-	grad_init_data.pSysMem = g;
-
-	// Setup the texture description.
-	grad_tex_desc.Width = 16;
-	grad_tex_desc.MipLevels = 1;
-	grad_tex_desc.ArraySize = 1;
-	grad_tex_desc.Format = DXGI_FORMAT_R32G32B32_FLOAT;
-	grad_tex_desc.Usage = D3D11_USAGE_DEFAULT;
-	grad_tex_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	grad_tex_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	grad_tex_desc.MiscFlags = 0;
-	// Create the render target texture.
-	result = renderer->CreateTexture1D(&grad_tex_desc, &grad_init_data, &grad_texture_);
-
-	// Setup the description of the shader resource view.
-	grad_srv_desc.Format = grad_tex_desc.Format;
-	grad_srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
-	grad_srv_desc.Texture2D.MostDetailedMip = 0;
-	grad_srv_desc.Texture2D.MipLevels = 1;
-	// Create the shader resource view.
-	result = renderer->CreateShaderResourceView(grad_texture_, &grad_srv_desc, &grad_srv_);
-
-	// Create a texture sampler state description.
-	perm_sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-	perm_sampler_desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	perm_sampler_desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	perm_sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	perm_sampler_desc.MipLODBias = 0.0f;
-	perm_sampler_desc.MaxAnisotropy = 1;
-	perm_sampler_desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-	perm_sampler_desc.MinLOD = 0;
-	perm_sampler_desc.MaxLOD = D3D11_FLOAT32_MAX;
-
-	// Create the texture sampler state.
-	renderer->CreateSamplerState(&perm_sampler_desc, &perm_sampler_);
-
 	// PERMUTATION TEXTURE INITIALISATION .......................................................................................
 
 	ZeroMemory(&perm_tex_desc, sizeof(perm_tex_desc));
@@ -183,7 +165,7 @@ void NoiseShader::initShader(const wchar_t* vs, const wchar_t* ps)
 		129,22,39,253, 19,98,108,110,79,113,224,232,178,185, 112,104,218,246,97,228,
 		251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
 		49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
-		138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180 
+		138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180
 	};
 
 	for (int i = 0; i < 256; i++)
@@ -217,17 +199,17 @@ void NoiseShader::initShader(const wchar_t* vs, const wchar_t* ps)
 	result = renderer->CreateShaderResourceView(perm_texture_, &perm_srv_desc, &perm_srv_);
 
 	// Create a texture sampler state description.
-	grad_sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-	grad_sampler_desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	grad_sampler_desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	grad_sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	grad_sampler_desc.MipLODBias = 0.0f;
-	grad_sampler_desc.MaxAnisotropy = 1;
-	grad_sampler_desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-	grad_sampler_desc.MinLOD = 0;
-	grad_sampler_desc.MaxLOD = D3D11_FLOAT32_MAX;
+	perm_sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+	perm_sampler_desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	perm_sampler_desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	perm_sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	perm_sampler_desc.MipLODBias = 0.0f;
+	perm_sampler_desc.MaxAnisotropy = 1;
+	perm_sampler_desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+	perm_sampler_desc.MinLOD = 0;
+	perm_sampler_desc.MaxLOD = D3D11_FLOAT32_MAX;
 
 	// Create the texture sampler state.
-	renderer->CreateSamplerState(&grad_sampler_desc, &grad_sampler_);
+	renderer->CreateSamplerState(&perm_sampler_desc, &perm_sampler_);
 }
 

@@ -1,5 +1,6 @@
 #include "noise_texture.h"
 #include "perlin_noise.h"
+#include <random>
 
 NoiseTexture::NoiseTexture(ID3D11Device* device, const unsigned int w, const unsigned int h)
 	: texture(nullptr), texture_srv(nullptr)
@@ -66,25 +67,46 @@ void NoiseTexture::setColour(ID3D11DeviceContext* context, float r, float g, flo
 	delete[] Data;
 }
 
-void NoiseTexture::setNoise(ID3D11DeviceContext* context, float n_scale, XMFLOAT2 offset)
+void NoiseTexture::setNoise(ID3D11DeviceContext* context, NoiseParameters np)
 {
+	// create data buffer
 	XMFLOAT4* Data = new XMFLOAT4[textureWidth * textureHeight]();
 
-	PerlinNoise noise_function;
+	float max_noise_height = -1000;
+	float min_noise_height = 1000;
 
+	// set each pixel to the appropriate colour using Perlin noise
 	for (int i = 0; i < textureWidth; ++i)
 	{
 		for (int j = 0; j < textureHeight; ++j)
 		{
-			float in_x = ((float)i / ((float)textureWidth))/n_scale;
-			float in_y = ((float)j / ((float)textureHeight))/n_scale;
+			float amplitude = 1;
+			float freaquency = 1;
 
-			float perlin_value = noise_function.noise(in_x+offset.x, in_y+offset.y);
+			float noise_height = 0;
 
-			Data[i + j * textureWidth] = XMFLOAT4(perlin_value, perlin_value, perlin_value, 1);
+			for (int k = 0; k < np.octaves; k++)
+			{
+				float sample_x = ((float)i / ((float)textureWidth ))/ np.scale * freaquency + np.octave_offsets[k].x;
+				float sample_y = ((float)j / ((float)textureHeight))/ np.scale * freaquency + np.octave_offsets[k].y;
+
+				float perlin_value = PerlinNoise::noise(sample_x + np.offset[0], sample_y + np.offset[1])*2-1;
+
+				noise_height += perlin_value * amplitude;
+				amplitude *= np.persistance;
+				freaquency *= np.lacunarity;
+			}
+
+			max_noise_height = (max_noise_height < noise_height) ? noise_height : max_noise_height;
+			min_noise_height = (min_noise_height > noise_height) ? noise_height : min_noise_height;
+
+			noise_height = normaliseHeight(noise_height, min_noise_height, max_noise_height);
+
+			Data[i + j * textureWidth] = XMFLOAT4(noise_height, noise_height, noise_height, 1);
 		}
 	}
 
+	// update the texture with new colours
 	UINT const DataSize = sizeof(XMFLOAT4);
 	UINT const RowPitch = DataSize * textureWidth;
 	UINT const DepthPitch = DataSize * textureWidth * textureHeight;
@@ -98,8 +120,14 @@ void NoiseTexture::setNoise(ID3D11DeviceContext* context, float n_scale, XMFLOAT
 	Box.back = 1;
 
 	context->UpdateSubresource(texture, 0, &Box, Data, RowPitch, DepthPitch);
+
 	delete[] Data;
 	Data = nullptr;
 
+}
+
+float NoiseTexture::normaliseHeight(float data, float data_min, float data_max)
+{
+	return (data - data_min) / (data_max - data_min);
 }
 

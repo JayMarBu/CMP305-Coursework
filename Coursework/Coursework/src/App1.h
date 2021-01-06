@@ -24,6 +24,14 @@
 
 class App1 : public BaseApplication
 {
+public: 
+	enum TERRAIN_FLAGS : uint16_t
+	{
+		GPU_NOISE_FLAG					= 0b0000000000000001,
+		CPU_NOISE_FLAG					= 0b0000000000000010,
+		GENERATING_CPU_NOISE_FLAG		= 0b0000000000000100,
+		REAL_TIME_TERRAIN_UPDATE_FLAG	= 0b0000000000001000
+	};
 public:
 
 	App1();
@@ -42,6 +50,7 @@ protected:
 	void initRenderTextures(int screenWidth, int screenHeight);
 	void initTextures();
 	void initWorld();
+	void initNoise();
 	void initDebug(int screenWidth, int screenHeight);
 
 	// RENDER METHODS ...............................................................................................................................
@@ -74,19 +83,21 @@ protected:
 	// MISC METHODS .................................................................................................................................
 	gpfw::Entity* getEntity(const char* name);
 
+	void setOctaveOffsets(int seed, int octaves);
+
 private:
 	// CAMERA .......................................................................................................................................
 	FreeCamera cam_;
 
 	// SHADERS ......................................................................................................................................
-	LightShader* light_shader_;
-	DepthShader* depth_shader_;
-	TextureShader* texture_shader_;
-	ShadowShader* shadow_shader_;
-	HorizontalBlurShader* h_blur_shader_;
-	VerticalBlurShader* v_blur_shader_;
-	WaterShader* water_shader_;
-	NoiseShader* noise_shader_;
+	LightShader*			light_shader_;
+	DepthShader*			depth_shader_;
+	TextureShader*			texture_shader_;
+	ShadowShader*			shadow_shader_;
+	HorizontalBlurShader*	h_blur_shader_;
+	VerticalBlurShader*		v_blur_shader_;
+	WaterShader*			water_shader_;
+	NoiseShader*			noise_shader_;
 
 	GenerateTerrainCShader* generate_terrain_cs_;
 
@@ -143,9 +154,9 @@ private:
 		RenderType render_type;
 	};
 
-	float debug_colours_[3];
-	float noise_offest_[2] = {0,0};
-	float debug_noise_scale_ = 1.0f;
+	NoiseParameters noise_params_;
+	
+	uint16_t terrain_flags_;
 
 	debug_render_texture_name render_texture_names_[9];
 };
