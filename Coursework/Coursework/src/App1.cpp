@@ -22,6 +22,7 @@ void App1::init(HINSTANCE hinstance, HWND hwnd, int screenWidth, int screenHeigh
 	initRenderTextures(screenWidth, screenHeight);
 	initTextures();
 	initWorld();
+	initNoise();
 	initDebug(screenWidth, screenHeight);
 }
 
@@ -67,6 +68,7 @@ void App1::initCam(HWND hwnd, int screenWidth, int screenHeight)
 void App1::initShaders(HWND hwnd)
 {
 	// initialise shaders
+	noise_shader_ = new NoiseShader(renderer->getDevice(), hwnd);
 	light_shader_ = new LightShader(renderer->getDevice(), hwnd);
 	depth_shader_ = new DepthShader(renderer->getDevice(), hwnd);
 	texture_shader_ = new TextureShader(renderer->getDevice(), hwnd);
@@ -74,7 +76,6 @@ void App1::initShaders(HWND hwnd)
 	h_blur_shader_ = new HorizontalBlurShader(renderer->getDevice(), hwnd);
 	v_blur_shader_ = new VerticalBlurShader(renderer->getDevice(), hwnd);
 	water_shader_ = new WaterShader(renderer->getDevice(), hwnd);
-	noise_shader_ = new NoiseShader(renderer->getDevice(), hwnd);
 
 	generate_terrain_cs_ = new GenerateTerrainCShader(renderer->getDevice(), hwnd, pow(TERRAIN_SIZE, 2));
 }
@@ -142,21 +143,6 @@ void App1::initRenderTextures(int screenWidth, int screenHeight)
 	render_texture_names_[6].name = "water_refraction_texture_";
 	render_texture_names_[6].render_texture = ocean_.refraction_texture;
 	render_texture_names_[6].render_type = debug_render_texture_name::RenderType::RenderTarget;
-
-	noise_texture_ = new RenderTexture(renderer->getDevice(), screenWidth, screenHeight, SCREEN_NEAR, SCREEN_DEPTH);
-	render_texture_names_[7].name = "noise texture";
-	render_texture_names_[7].render_texture = noise_texture_;
-	render_texture_names_[7].render_type = debug_render_texture_name::RenderType::RenderTarget;
-
-	noise_mesh_ = new OrthoMesh(
-		renderer->getDevice(), renderer->getDeviceContext(),
-		screenWidth, screenWidth
-	);
-
-	noise_texture_custom_ = new NoiseTexture(renderer->getDevice(), screenWidth, screenWidth);
-	render_texture_names_[8].name = "noise texture custom";
-	render_texture_names_[8].render_texture = noise_texture_custom_;
-	render_texture_names_[8].render_type = debug_render_texture_name::RenderType::NoiseTextureCustom;
 }
 
 void App1::initTextures()
@@ -194,6 +180,40 @@ void App1::initWorld()
 	ocean_.distortion_strength = 0.07f;
 	ocean_.water_colour = XMFLOAT3(0.0, 0.3, 0.5);
 	ocean_.reflection_strength = 1.8f;
+}
+
+void App1::initNoise()
+{
+	// initialise perlin noise singleton
+	PerlinNoise::init();
+
+	// initialise terrain flags
+	terrain_flags_ &= 0x00;
+	terrain_flags_ |= CPU_NOISE_FLAG;
+
+	// create GPU noise render texture
+	noise_texture_ = new RenderTexture(renderer->getDevice(), s_width_, s_height_, SCREEN_NEAR, SCREEN_DEPTH);
+	render_texture_names_[7].name = "noise texture";
+	render_texture_names_[7].render_texture = noise_texture_;
+	render_texture_names_[7].render_type = debug_render_texture_name::RenderType::RenderTarget;
+
+	// initialise noise ortho mesh
+	noise_mesh_ = new OrthoMesh(
+		renderer->getDevice(), renderer->getDeviceContext(),
+		s_width_, s_width_
+	);
+
+	// initialise CPU noise texture
+	noise_texture_custom_ = new NoiseTexture(renderer->getDevice(), s_width_, s_width_);
+	render_texture_names_[8].name = "noise texture custom";
+	render_texture_names_[8].render_texture = noise_texture_custom_;
+	render_texture_names_[8].render_type = debug_render_texture_name::RenderType::NoiseTextureCustom;
+
+	// initialise octave offsets
+	setOctaveOffsets(noise_params_.seed, noise_params_.octaves);
+
+	// generate initial CPU noise texture
+	noise_texture_custom_->setNoise(renderer->getDeviceContext(), noise_params_);
 }
 
 void App1::initDebug(int screenWidth, int screenHeight)
@@ -371,6 +391,13 @@ bool App1::frame()
 	ocean_.move_factor.y += timer->getTime() * ocean_.move_speed.y;
 	ocean_.move_factor.y = (ocean_.move_factor.y >= 1) ? ocean_.move_factor.y - 1 : ocean_.move_factor.y;
 
+	if (terrain_flags_ & GENERATING_CPU_NOISE_FLAG)
+	{
+		noise_texture_custom_->setNoise(renderer->getDeviceContext(), noise_params_);
+		terrain_flags_ &= ~GENERATING_CPU_NOISE_FLAG;
+	}
+	
+
 	// Render the graphics.
 	result = render();
 	if (!result)
@@ -385,7 +412,8 @@ bool App1::render()
 	// Generate the view matrix based on the camera's position.
 	cam_.update();
 
-	CreateNoise();
+	if (terrain_flags_ & GPU_NOISE_FLAG)
+		CreateNoise();
 
 	depthPass();
 	shadowPass();
@@ -704,6 +732,7 @@ void App1::scenePass()
 	renderer->endScene();
 }
 
+// CREATE NOISE TEXTURE PASS ......................................................................
 void App1::CreateNoise()
 {
 	noise_texture_->clearRenderTarget(renderer->getDeviceContext(), 1.f, 0.f, 1.f, 1.0f);
@@ -715,7 +744,7 @@ void App1::CreateNoise()
 	s_info.projection = noise_texture_->getProjectionMatrix();
 	s_info.d_info.context = renderer->getDeviceContext();
 
-	noise_shader_->Render(s_info, noise_mesh_, debug_noise_scale_, XMFLOAT2(noise_offest_[0], noise_offest_[1]));
+	noise_shader_->Render(s_info, noise_mesh_, noise_params_);
 
 	renderer->setBackBufferRenderTarget();
 	renderer->resetViewport();
@@ -751,23 +780,71 @@ void App1::gui()
 	// TERRAIN OPTIONS ............................................................................
 	if (ImGui::CollapsingHeader("Terrain Options"))
 	{
-		ImGui::Text("Colour:");
-		ImGui::ColorEdit3("##noise colour", debug_colours_);
+		ID3D11ShaderResourceView* noise_gui_srv = nullptr;
 
-		if (ImGui::Button("Colour texture"))
+		if ((terrain_flags_ & CPU_NOISE_FLAG) && (terrain_flags_ & ~GPU_NOISE_FLAG))
+			noise_gui_srv = noise_texture_custom_->getShaderResourceView();
+		else if ((terrain_flags_ & GPU_NOISE_FLAG) && (terrain_flags_ & ~CPU_NOISE_FLAG))
+			noise_gui_srv = noise_texture_->getShaderResourceView();
+
+		ImGui::Image((void*)noise_gui_srv, ImVec2(s_width_/4.5, s_width_/4.5));
+		if (terrain_flags_ & CPU_NOISE_FLAG)
 		{
-			noise_texture_custom_->setColour(renderer->getDeviceContext(), debug_colours_[0], debug_colours_[1], debug_colours_[2], 1.0);
-			//noise_texture_custom_->setNoise(renderer->getDeviceContext(), 0.3f);
+			if (ImGui::Button("Generate Noise Texture"))
+			{
+				ImGui::Text("Generating Noise Texture...");
+				terrain_flags_ |= GENERATING_CPU_NOISE_FLAG;
+			}
+		}
+		ImGui::Text("NOISE SETTINGS ............................................");
+		static const char* gpu_cpu_options_list[] =
+		{
+			"CPU",
+			"GPU"
+		};
+
+		static const char* current_item = gpu_cpu_options_list[0];
+
+		ImGui::Text("Noise Generation Location:");
+		if (ImGui::BeginCombo("##Noise Generation Location combo", current_item))
+		{
+			for (int n = 0; n < IM_ARRAYSIZE(gpu_cpu_options_list); n++)
+			{
+				bool is_selected = (current_item == gpu_cpu_options_list[n]);
+				if (ImGui::Selectable(gpu_cpu_options_list[n], is_selected))
+				{
+					current_item = gpu_cpu_options_list[n];
+					if (n == 0)
+					{
+						terrain_flags_ |= CPU_NOISE_FLAG; 
+						terrain_flags_ &= ~GPU_NOISE_FLAG;
+					}
+					else
+					{
+						terrain_flags_ |= GPU_NOISE_FLAG;
+						terrain_flags_ &= ~CPU_NOISE_FLAG;
+					}
+						
+				}
+				if (is_selected)
+					ImGui::SetItemDefaultFocus();
+			}
+			ImGui::EndCombo();
 		}
 		ImGui::Text("Noise scale:");
-		ImGui::SliderFloat("##noise scale", &debug_noise_scale_, 0.001f, 1.0f);
+		ImGui::SliderFloat("##noise scale", &noise_params_.scale, 0.001f, 1.0f);
 		ImGui::Text("Noise offset:");
-		ImGui::SliderFloat2("##noise offset", noise_offest_,  -10.0f, 10.0f);
-		if (ImGui::Button("Noise texture"))
-		{
-			//noise_texture_custom_->setColour(renderer->getDeviceContext(), debug_colours_[0], debug_colours_[1], debug_colours_[2], 1.0);
-			noise_texture_custom_->setNoise(renderer->getDeviceContext(), debug_noise_scale_, XMFLOAT2(noise_offest_[0],noise_offest_[1]));
-		}
+		ImGui::SliderFloat2("##noise offset", noise_params_.offset,  -10.0f, 10.0f);
+		ImGui::Text("Noise octaves:");
+		if (ImGui::SliderInt("##noise octaves", &noise_params_.octaves, 1, 10))
+			setOctaveOffsets(noise_params_.seed, noise_params_.octaves);
+		ImGui::Text("Noise persistence:");
+		ImGui::SliderFloat("##noise persistence", &noise_params_.persistance, 0.01f, 1.0f);
+		ImGui::Text("Noise lacunarity:");
+		ImGui::SliderFloat("##noise lacunarity", &noise_params_.lacunarity, 1.0f, 10.0f);
+		ImGui::Text("Seed:");
+		if (ImGui::InputInt("##random seed", &noise_params_.seed))
+			setOctaveOffsets(noise_params_.seed, noise_params_.octaves);
 
 		if (ImGui::Button("Generate Terrain Mesh"))
 		{
@@ -939,6 +1016,17 @@ gpfw::Entity* App1::getEntity(const char* search_name)
 		{
 			return entities_[i];
 		}
+	}
+}
+
+void App1::setOctaveOffsets(int seed, int octaves)
+{
+	srand(seed);
+	for (int i = 0; i < octaves; i++)
+	{
+		float octave_offsets_x = (rand() % 1000 - 500);
+		float octave_offsets_y = (rand() % 1000 - 500);
+		noise_params_.octave_offsets[i] = XMFLOAT2(octave_offsets_x, octave_offsets_y);
 	}
 }
 

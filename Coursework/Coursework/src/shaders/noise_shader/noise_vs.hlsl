@@ -20,7 +20,7 @@ struct OutputType
 	float4 position : SV_POSITION;
 	float2 tex : TEXCOORD0;
 	float3 normal : NORMAL;
-	float4 position2 : TEXCOORD1;
+	float4 screen_pos : TEXCOORD1;
 };
 
 OutputType main(InputType input)
@@ -32,7 +32,7 @@ OutputType main(InputType input)
 	output.position = mul(output.position, viewMatrix);
 	output.position = mul(output.position, projectionMatrix);
 	
-	output.position2 = output.position;
+	output.screen_pos = output.position;
 
 	// Store the texture coordinates for the pixel shader.
 	output.tex = input.tex;
