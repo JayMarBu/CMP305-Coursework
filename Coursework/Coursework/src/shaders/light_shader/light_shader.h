@@ -25,8 +25,8 @@ private:
 	{
 		XMFLOAT4 ambient;
 		XMFLOAT4 diffuse;
-		XMFLOAT4 dir_spec_pow;
-		XMFLOAT4 specular_colour;
+		XMFLOAT3 direction;
+		float water_level;
 	};
 
 	struct CameraBufferType
@@ -40,7 +40,7 @@ public:
 	LightShader(ID3D11Device* device, HWND hwnd);
 	~LightShader();
 
-	void setShaderParameters(gpfw::ShaderInfo s_info, ID3D11ShaderResourceView* texture, gpfw::LightingInfo, ID3D11ShaderResourceView* shadow_map, XMFLOAT4 clip_plane = XMFLOAT4(0,0,0,0));
+	void setShaderParameters(gpfw::ShaderInfo s_info, ID3D11ShaderResourceView* texture0, ID3D11ShaderResourceView* texture1, ID3D11ShaderResourceView* texture2, ID3D11ShaderResourceView* texture3, gpfw::LightingInfo, ID3D11ShaderResourceView* shadow_map, XMFLOAT4 clip_plane = XMFLOAT4(0,0,0,0));
 
 	void Render(gpfw::ShaderInfo s_info, gpfw::LightingInfo, gpfw::Entity e, ID3D11ShaderResourceView* shadow_map, XMFLOAT4 clip_plane = XMFLOAT4(0, 0, 0, 0));
 	void Render(gpfw::ShaderInfo s_info, gpfw::LightingInfo, gpfw::TerrainChunk t, ID3D11ShaderResourceView* shadow_map, XMFLOAT4 clip_plane = XMFLOAT4(0, 0, 0, 0));

@@ -33,6 +33,7 @@ struct OutputType
 	float3 viewVector : TEXCOORD1;
 	float4 viewPos : TEXCOORD2;
 	float clip : SV_ClipDistance0;
+	float height : TEXCOORD3;
 };
 
 OutputType main(InputType input)
@@ -59,6 +60,8 @@ OutputType main(InputType input)
 	output.viewPos = output.position;
 	
 	output.clip = dot(mul(input.position, worldMatrix), clip_plane);
+	
+	output.height = input.position.y;
 
 	return output;
 }

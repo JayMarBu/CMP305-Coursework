@@ -51,7 +51,7 @@ LightShader::~LightShader()
 	BaseShader::~BaseShader();
 }
 
-void LightShader::setShaderParameters(gpfw::ShaderInfo s_info, ID3D11ShaderResourceView* texture, gpfw::LightingInfo l_info, ID3D11ShaderResourceView* shadow_map, XMFLOAT4 clip_plane)
+void LightShader::setShaderParameters(gpfw::ShaderInfo s_info, ID3D11ShaderResourceView* texture0, ID3D11ShaderResourceView* texture1, ID3D11ShaderResourceView* texture2,ID3D11ShaderResourceView* texture3, gpfw::LightingInfo l_info, ID3D11ShaderResourceView* shadow_map, XMFLOAT4 clip_plane)
 {
 	HRESULT result;
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
@@ -80,8 +80,8 @@ void LightShader::setShaderParameters(gpfw::ShaderInfo s_info, ID3D11ShaderResou
 	lightPtr = (LightBufferType*)mappedResource.pData;
 	lightPtr->ambient = l_info.ambient;
 	lightPtr->diffuse = l_info.diffuse;
-	lightPtr->dir_spec_pow = l_info.dir_spec_pow;
-	lightPtr->specular_colour = l_info.spec_colour;
+	lightPtr->direction= gpfw::light::GetDirection(l_info);
+	lightPtr->water_level = clip_plane.w;
 	s_info.d_info.context->Unmap(light_buffer_, 0);
 	s_info.d_info.context->PSSetConstantBuffers(0, 1, &light_buffer_);
 
@@ -106,11 +106,14 @@ void LightShader::setShaderParameters(gpfw::ShaderInfo s_info, ID3D11ShaderResou
 	s_info.d_info.context->VSSetConstantBuffers(2, 1, &clip_plane_buffer_);
 
 	// Set shader texture resource in the pixel shader.
-	s_info.d_info.context->PSSetShaderResources(0, 1, &texture);
+	s_info.d_info.context->PSSetShaderResources(0, 1, &texture0);
+	s_info.d_info.context->PSSetShaderResources(1, 1, &texture1);
+	s_info.d_info.context->PSSetShaderResources(2, 1, &texture2);
+	s_info.d_info.context->PSSetShaderResources(3, 1, &texture3);
 	s_info.d_info.context->PSSetSamplers(0, 1, &sample_state_);
 
 	// Set shader texture resource in the pixel shader.
-	s_info.d_info.context->PSSetShaderResources(1, 1, &shadow_map);
+	s_info.d_info.context->PSSetShaderResources(4, 1, &shadow_map);
 	s_info.d_info.context->PSSetSamplers(1, 1, &sample_state_shadow_);
 
 
@@ -122,6 +125,9 @@ void LightShader::Render(gpfw::ShaderInfo s_info, gpfw::LightingInfo l_info, gpf
 	e.mesh->sendData(s_info.d_info.context);
 	setShaderParameters(
 		s_info,
+		gpfw::entity::GetTexture(e),
+		gpfw::entity::GetTexture(e),
+		gpfw::entity::GetTexture(e),
 		gpfw::entity::GetTexture(e),
 		l_info,
 		shadow_map,
@@ -136,7 +142,10 @@ void LightShader::Render(gpfw::ShaderInfo s_info, gpfw::LightingInfo l_info, gpf
 	t.mesh->sendData(s_info.d_info.context);
 	setShaderParameters(
 		s_info,
-		gpfw::terrain::GetTexture(t),
+		gpfw::terrain::GetTexture0(t),
+		gpfw::terrain::GetTexture1(t),
+		gpfw::terrain::GetTexture2(t),
+		gpfw::terrain::GetTexture3(t),
 		l_info,
 		shadow_map,
 		clip_plane

@@ -26,7 +26,10 @@ namespace gpfw
 
 		// height & material textures
 		const wchar_t* heightmap = L"Default";
-		const wchar_t* texture = L"Default";
+		const wchar_t* texture0 = L"Default";
+		const wchar_t* texture1 = L"Default";
+		const wchar_t* texture2 = L"Default";
+		const wchar_t* texture3 = L"Default";
 
 		// pointer to application class' texture manager
 		// for ease of access
@@ -55,7 +58,7 @@ namespace gpfw
 	namespace terrain
 	{
 		// TERRAIN CREATION AND DESTRUCTION METHODS ...............................................
-		TerrainChunk CreateTerrainChunk(DeviceInfo d_info, TextureManager* texture_manager, const wchar_t* texture = L"Default", int resolution = 128, int sidelen = 10, XMFLOAT3 pos = XMFLOAT3(0,0,0));
+		TerrainChunk CreateTerrainChunk(DeviceInfo d_info, TextureManager* texture_manager, const wchar_t* texture0 = L"Default", const wchar_t* texture1 = L"Default", const wchar_t* texture2 = L"Default",const wchar_t* texture3 = L"Default", int resolution = 128, int sidelen = 10, XMFLOAT3 pos = XMFLOAT3(0,0,0));
 
 		void ReleaseTerrainChunk(TerrainChunk& t);
 
@@ -65,7 +68,10 @@ namespace gpfw
 
 		// NON-TRIVIAL GETTER METHODS .............................................................
 		inline XMMATRIX GetTransformMatrix(TerrainChunk& t) { return XMMatrixTranslation(t.position.x, t.position.y, t.position.z); }
-		inline ID3D11ShaderResourceView* GetTexture(TerrainChunk& t) { return t.texture_manager->getTexture(t.texture); }
+		inline ID3D11ShaderResourceView* GetTexture0(TerrainChunk& t) { return t.texture_manager->getTexture(t.texture0); }
+		inline ID3D11ShaderResourceView* GetTexture1(TerrainChunk& t) { return t.texture_manager->getTexture(t.texture1); }
+		inline ID3D11ShaderResourceView* GetTexture2(TerrainChunk& t) { return t.texture_manager->getTexture(t.texture2); }
+		inline ID3D11ShaderResourceView* GetTexture3(TerrainChunk& t) { return t.texture_manager->getTexture(t.texture3); }
 
 		// NOISE FUNCTIONS ........................................................................
 	}

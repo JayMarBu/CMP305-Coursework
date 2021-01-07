@@ -148,15 +148,14 @@ void App1::initRenderTextures(int screenWidth, int screenHeight)
 void App1::initTextures()
 {
 	// load textures
-	textureMgr->loadTexture(L"brick", L"res/textures/brick1.dds");
-	textureMgr->loadTexture(L"grid", L"res/textures/DefaultDiffuse.png");
-	textureMgr->loadTexture(L"terrain_height_map", L"res/textures/Output.png");
-	textureMgr->loadTexture(L"rocks", L"res/textures/rock_ground_diff_1k.png");
+	textureMgr->loadTexture(L"rocks", L"res/textures/rock.png");
+	textureMgr->loadTexture(L"moss_rocks", L"res/textures/moss.png");
+	textureMgr->loadTexture(L"grass", L"res/textures/grass.png");
+	textureMgr->loadTexture(L"sand", L"res/textures/sand.png");
 	textureMgr->loadTexture(L"water_DuDv", L"res/textures/Water_001_DuDv.png");
 	textureMgr->loadTexture(L"water_normal", L"res/textures/Water_001_NORM.png");
 	textureMgr->loadTexture(L"white", L"res/textures/white.png");
-
-	//noise_texture_ = new NoiseTexture(renderer->getDevice(), s_width_, s_height_);
+	textureMgr->loadTexture(L"skybox", L"res/textures/StandardCubeMap.png");
 }
 
 void App1::initWorld()
@@ -167,7 +166,7 @@ void App1::initWorld()
 	d_info.context = renderer->getDeviceContext();
 	d_info.device = renderer->getDevice();
 
-	terrain_ = gpfw::terrain::CreateTerrainChunk(d_info, textureMgr, L"rocks", TERRAIN_SIZE, 100);
+	terrain_ = gpfw::terrain::CreateTerrainChunk(d_info, textureMgr, L"rocks",L"moss_rocks", L"grass",L"sand", TERRAIN_SIZE, 100);
 
 	// initialise ocean
 	ocean_.water_plane = gpfw::entity::CreateEntity(new TerrainMesh(renderer->getDevice(), renderer->getDeviceContext(), 1, 500), "water_plane", textureMgr, nullptr);
@@ -180,6 +179,8 @@ void App1::initWorld()
 	ocean_.distortion_strength = 0.07f;
 	ocean_.water_colour = XMFLOAT3(0.0, 0.3, 0.5);
 	ocean_.reflection_strength = 1.8f;
+
+	sky_box_ = new AModel(renderer->getDevice(), "res/models/skybox_cube.obj");
 }
 
 void App1::initNoise()
@@ -192,9 +193,9 @@ void App1::initNoise()
 	terrain_flags_ |= CPU_NOISE_FLAG;
 
 	// create GPU noise render texture
-	noise_texture_ = new RenderTexture(renderer->getDevice(), s_width_, s_height_, SCREEN_NEAR, SCREEN_DEPTH);
+	gpu_terrain_noise_texture_ = new RenderTexture(renderer->getDevice(), s_width_, s_height_, SCREEN_NEAR, SCREEN_DEPTH);
 	render_texture_names_[7].name = "noise texture";
-	render_texture_names_[7].render_texture = noise_texture_;
+	render_texture_names_[7].render_texture = gpu_terrain_noise_texture_;
 	render_texture_names_[7].render_type = debug_render_texture_name::RenderType::RenderTarget;
 
 	// initialise noise ortho mesh
@@ -204,16 +205,16 @@ void App1::initNoise()
 	);
 
 	// initialise CPU noise texture
-	noise_texture_custom_ = new NoiseTexture(renderer->getDevice(), s_width_, s_width_);
+	cpu_terrain_noise_texture_ = new NoiseTexture(renderer->getDevice(), s_width_, s_width_);
 	render_texture_names_[8].name = "noise texture custom";
-	render_texture_names_[8].render_texture = noise_texture_custom_;
+	render_texture_names_[8].render_texture = cpu_terrain_noise_texture_;
 	render_texture_names_[8].render_type = debug_render_texture_name::RenderType::NoiseTextureCustom;
 
 	// initialise octave offsets
 	setOctaveOffsets(noise_params_.seed, noise_params_.octaves);
 
 	// generate initial CPU noise texture
-	noise_texture_custom_->setNoise(renderer->getDeviceContext(), noise_params_);
+	cpu_terrain_noise_texture_->setNoise(renderer->getDeviceContext(), noise_params_);
 }
 
 void App1::initDebug(int screenWidth, int screenHeight)
@@ -393,7 +394,7 @@ bool App1::frame()
 
 	if (terrain_flags_ & GENERATING_CPU_NOISE_FLAG)
 	{
-		noise_texture_custom_->setNoise(renderer->getDeviceContext(), noise_params_);
+		cpu_terrain_noise_texture_->setNoise(renderer->getDeviceContext(), noise_params_);
 		terrain_flags_ &= ~GENERATING_CPU_NOISE_FLAG;
 	}
 	
@@ -658,6 +659,15 @@ void App1::waterReflectionPass()
 
 	XMFLOAT4 clipping_plane = XMFLOAT4(0, 1, 0, -(ocean_.water_level-ocean_.ref_offset));
 
+	renderer->setZBuffer(false);
+	s_info.world = XMMatrixTranslation(cam_.getPosition().x, cam_.getPosition().y, cam_.getPosition().z);
+	sky_box_->sendData(s_info.d_info.context);
+	texture_shader_->setShaderParameters(s_info.d_info.context, s_info.world, s_info.view, s_info.projection, textureMgr->getTexture(L"skybox"));
+	texture_shader_->render(s_info.d_info.context, sky_box_->getIndexCount());
+	renderer->setZBuffer(true);
+
+	s_info.world = worldMatrix;
+
 	for each (gpfw::Entity * e in entities_)
 	{
 		light_shader_->Render(s_info, lighting_info_, *e, textureMgr->getTexture(L"white"), clipping_plane);
@@ -693,6 +703,17 @@ void App1::waterRefractionPass()
 
 	XMFLOAT4 clipping_plane = XMFLOAT4(0.0f, -1.0f, 0.0f, ocean_.water_level);
 
+	renderer->setZBuffer(false);
+	//s_info.world = XMMatrixScaling(1, -1, 1);
+	s_info.world = XMMatrixTranslation(cam_.getPosition().x, cam_.getPosition().y, cam_.getPosition().z);
+	
+	sky_box_->sendData(s_info.d_info.context);
+	texture_shader_->setShaderParameters(s_info.d_info.context, s_info.world, s_info.view, s_info.projection, textureMgr->getTexture(L"skybox"));
+	texture_shader_->render(s_info.d_info.context, sky_box_->getIndexCount());
+	renderer->setZBuffer(true);
+
+	s_info.world = worldMatrix;
+
 	for each (gpfw::Entity * e in entities_)
 	{
 		light_shader_->Render(s_info, lighting_info_, *e, soft_shadow_mask_texture_->getShaderResourceView(), clipping_plane);
@@ -722,11 +743,20 @@ void App1::scenePass()
 	s_info.cam_pos = cam_.getPosition();
 
 	// RENDER SCENE ...............................................................................
+	renderer->setZBuffer(false);
+	s_info.world = XMMatrixTranslation(cam_.getPosition().x, cam_.getPosition().y, cam_.getPosition().z);
+	sky_box_->sendData(s_info.d_info.context);
+	texture_shader_->setShaderParameters(s_info.d_info.context, s_info.world, s_info.view, s_info.projection, textureMgr->getTexture(L"skybox"));
+	texture_shader_->render(s_info.d_info.context, sky_box_->getIndexCount());
+	renderer->setZBuffer(true);
+
+	s_info.world = worldMatrix;
+
 	for each (gpfw::Entity * e in entities_)
 	{
 		light_shader_->Render(s_info, lighting_info_, *e, soft_shadow_mask_texture_->getShaderResourceView());
 	}
-	light_shader_->Render(s_info, lighting_info_, terrain_, soft_shadow_mask_texture_->getShaderResourceView());
+	light_shader_->Render(s_info, lighting_info_, terrain_, soft_shadow_mask_texture_->getShaderResourceView(), XMFLOAT4(0.0f, 0.0f, 0.0f, ocean_.water_level));
 
 	water_shader_->Render(s_info, ocean_, lighting_info_);
 
@@ -747,13 +777,13 @@ void App1::scenePass()
 // CREATE NOISE TEXTURE PASS ......................................................................
 void App1::CreateNoise()
 {
-	noise_texture_->clearRenderTarget(renderer->getDeviceContext(), 1.f, 0.f, 1.f, 1.0f);
-	noise_texture_->setRenderTarget(renderer->getDeviceContext());
+	gpu_terrain_noise_texture_->clearRenderTarget(renderer->getDeviceContext(), 1.f, 0.f, 1.f, 1.0f);
+	gpu_terrain_noise_texture_->setRenderTarget(renderer->getDeviceContext());
 
 	gpfw::ShaderInfo s_info;
 	s_info.world = renderer->getWorldMatrix();
 	s_info.view = cam_.getOrthoViewMatrix();
-	s_info.projection = noise_texture_->getProjectionMatrix();
+	s_info.projection = gpu_terrain_noise_texture_->getProjectionMatrix();
 	s_info.d_info.context = renderer->getDeviceContext();
 
 	noise_shader_->Render(s_info, noise_mesh_, noise_params_);
@@ -793,9 +823,9 @@ void App1::gui()
 	if (ImGui::CollapsingHeader("Terrain Options"))
 	{
 		if ((terrain_flags_ & CPU_NOISE_FLAG) && (terrain_flags_ & ~GPU_NOISE_FLAG))
-			terrain_noise_map_ = noise_texture_custom_->getShaderResourceView();
+			terrain_noise_map_ = cpu_terrain_noise_texture_->getShaderResourceView();
 		else if ((terrain_flags_ & GPU_NOISE_FLAG) && (terrain_flags_ & ~CPU_NOISE_FLAG))
-			terrain_noise_map_ = noise_texture_->getShaderResourceView();
+			terrain_noise_map_ = gpu_terrain_noise_texture_->getShaderResourceView();
 
 		ImGui::Image((void*)terrain_noise_map_, ImVec2(s_width_/4.5, s_width_/4.5));
 		if (terrain_flags_ & CPU_NOISE_FLAG)

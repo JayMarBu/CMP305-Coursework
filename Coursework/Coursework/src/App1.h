@@ -105,7 +105,17 @@ private:
 	RenderTexture* h_blur_texture_;
 	RenderTexture* v_blur_texture_;
 	RenderTexture* soft_shadow_mask_texture_;
-	RenderTexture* noise_texture_;
+
+	// PROCEDURAL TEXTURE DATA ......................................................................................................................
+
+	RenderTexture* gpu_terrain_noise_texture_;
+	NoiseTexture* cpu_terrain_noise_texture_;
+	
+	ID3D11ShaderResourceView* terrain_noise_map_ = nullptr;
+	NoiseParameters noise_params_;
+
+	uint16_t terrain_flags_;
+	bool real_time_terrain_gen_ = false;
 
 	// RENDER DATA ..................................................................................................................................
 	gpfw::LightingInfo lighting_info_;
@@ -122,14 +132,12 @@ private:
 	OrthoMesh* upsample_mesh_;
 	OrthoMesh* noise_mesh_;
 
+	AModel* sky_box_;
+
 	float fov_;
 	float aspect_ratio_;
 	float s_width_;
 	float s_height_;
-
-	NoiseTexture* noise_texture_custom_;
-	bool real_time_terrain_gen_ = false;
-	ID3D11ShaderResourceView* terrain_noise_map_ = nullptr;
 
 	// DEBUG DATA ...................................................................................................................................
 	ID3D11ShaderResourceView* debug_render_ptr_;
@@ -153,10 +161,6 @@ private:
 		
 		RenderType render_type;
 	};
-
-	NoiseParameters noise_params_;
-	
-	uint16_t terrain_flags_;
 
 	debug_render_texture_name render_texture_names_[9];
 };
