@@ -150,7 +150,7 @@ float4 main(InputType input) : SV_TARGET
 	
 		// generate noise
 		float noise_val = inoise(noise_inputs);
-		float2 max_min_noise_val = float2(-0.8, 0.8);
+		float2 max_min_noise_val = float2(-1, 1);
 		
 		min_noise_height += max_min_noise_val.x * amplitude;
 		max_noise_height += max_min_noise_val.y * amplitude;
