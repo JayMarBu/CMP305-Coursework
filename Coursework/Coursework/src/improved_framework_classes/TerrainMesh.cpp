@@ -15,7 +15,7 @@ TerrainMesh::~TerrainMesh()
 	BaseMesh::~BaseMesh();
 }
 
-void TerrainMesh::ApplyHeightMap(ID3D11Device* device, ID3D11DeviceContext* context, GenerateTerrainCShader* cs, ID3D11ShaderResourceView* height_map, int x, int y, int z)
+void TerrainMesh::ApplyHeightMap(ID3D11Device* device, ID3D11DeviceContext* context, GenerateTerrainCShader* cs, ID3D11ShaderResourceView* height_map, gpfw::HeightParameters h_params, int x, int y, int z)
 {
 	// create temporary shader resource views
 	ID3D11Buffer* vertex_srv_buffer_;
@@ -43,7 +43,7 @@ void TerrainMesh::ApplyHeightMap(ID3D11Device* device, ID3D11DeviceContext* cont
 	max_values.y = side_length / 2;
 
 	// dispatch the compute shader
-	cs->RunComputeShader(context, vertex_srv_, height_map, min_values, max_values, x, y, z);
+	cs->RunComputeShader(context, vertex_srv_, height_map, min_values, max_values, h_params, x, y, z);
 
 	// empty temporary buffer
 	verts = nullptr;

@@ -5,9 +5,6 @@
 #pragma once
 #include <Input.h>
 #include <directxmath.h>
-#include "imGUI/imgui.h"
-#include "imGUI/imgui_impl_dx11.h"
-#include "imGUI/imgui_impl_win32.h"
 #include "shaders/shader_utils.h"
 
 using namespace DirectX;

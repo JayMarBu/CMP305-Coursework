@@ -1,4 +1,6 @@
 #include "generate_terrain_cshader.h"
+#include "entities/terrain.h"
+
 // CONSTRUCTOR & DECONSTRUCTOR ..................................................................................................................
 GenerateTerrainCShader::GenerateTerrainCShader(ID3D11Device* device, HWND hwnd, const unsigned int count) 
 	: BaseShader(device, hwnd), v_count_(count)
@@ -68,7 +70,7 @@ void GenerateTerrainCShader::initShader(const wchar_t* cfile, const wchar_t* bla
 }
 
 // SHADER DISPATCH METHODS ..........................................................................................................................
-void GenerateTerrainCShader::setShaderParameters(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* in_data, ID3D11ShaderResourceView* height_map, TerrainParametersType min_max)
+void GenerateTerrainCShader::setShaderParameters(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* in_data, ID3D11ShaderResourceView* height_map, TerrainParametersType params)
 {
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
 	TerrainParametersType* TerrainParamPtr;
@@ -76,8 +78,9 @@ void GenerateTerrainCShader::setShaderParameters(ID3D11DeviceContext* dc, ID3D11
 	// send constant buffer
 	dc->Map(terrain_parameters_buffer_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 	TerrainParamPtr = (TerrainParametersType*)mappedResource.pData;
-	TerrainParamPtr->data_min = min_max.data_min;
-	TerrainParamPtr->data_max = min_max.data_max;
+	TerrainParamPtr->data_min = params.data_min;
+	TerrainParamPtr->data_max = params.data_max;
+	TerrainParamPtr->height = params.height;
 	dc->Unmap(terrain_parameters_buffer_, 0);
 	dc->CSSetConstantBuffers(0, 1, &terrain_parameters_buffer_);
 
@@ -98,12 +101,13 @@ void GenerateTerrainCShader::unbind(ID3D11DeviceContext* dc)
 	dc->CSSetShader(nullptr, nullptr, 0);
 }
 
-void GenerateTerrainCShader::RunComputeShader(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* in_data, ID3D11ShaderResourceView* height_map, XMFLOAT2 data_min, XMFLOAT2 data_max, int x, int y, int z)
+void GenerateTerrainCShader::RunComputeShader(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* in_data, ID3D11ShaderResourceView* height_map, XMFLOAT2 data_min, XMFLOAT2 data_max, gpfw::HeightParameters h_params, int x, int y, int z)
 {
 	// set the shader parameters
 	TerrainParametersType temp;
 	temp.data_max = data_max;
 	temp.data_min = data_min;
+	temp.height = h_params.height;
 	setShaderParameters(dc, in_data, height_map, temp);
 
 	// dispatch the shader

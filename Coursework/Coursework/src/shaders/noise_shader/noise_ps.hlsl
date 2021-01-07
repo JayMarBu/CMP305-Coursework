@@ -28,7 +28,7 @@ cbuffer NoiseParameters : register(b0)
 	// 16 bytes
 	float persistance;
 	float lacunarity;
-	float2 padding;
+	float2 falloff;
 }
 
 struct InputType
@@ -104,9 +104,17 @@ float normaliseHeight(float data, float data_min, float data_max)
 	return (data - data_min) / (data_max - data_min);
 }
 
+// contrast function adapted from:
+// https://alaingalvan.tumblr.com/post/79864187609/glsl-color-correction-shaders
+float3 contrast(float3 value, float contrast)
+{
+	return (value - 0.5) * contrast + 0.5;
+}
+
 // MAIN FUNCTION ....................................................................................................................................
 float4 main(InputType input) : SV_TARGET
 {
+	// create offsets array
 	float2 octave_offsets[10] =
 	{
 		octave_offsets_0,
@@ -130,10 +138,8 @@ float4 main(InputType input) : SV_TARGET
 	ndc.x = (((input.screen_pos.x / input.screen_pos.w) / 2) + 0.5);
 	ndc.y = (((-input.screen_pos.y / input.screen_pos.w) / 2) + 0.5);
 	
-	
-	
+	// initialise data
 	float max_noise_height = 0;
-
 	float min_noise_height = 0;
 	
 	float amplitude = 1;
@@ -145,13 +151,14 @@ float4 main(InputType input) : SV_TARGET
 	{
 		// apply user defined variables
 		float2 noise_inputs = ndc / scale * freaquency + octave_offsets[i] + offset;
-		//noise_inputs.x += offset.x;
-		//noise_inputs.y += offset.y;
 	
 		// generate noise
 		float noise_val = inoise(noise_inputs);
+		
+		// set max and min values
 		float2 max_min_noise_val = float2(-1, 1);
 		
+		// add octave noise value to overall colour
 		min_noise_height += max_min_noise_val.x * amplitude;
 		max_noise_height += max_min_noise_val.y * amplitude;
 		noise_height += noise_val * amplitude;
@@ -159,9 +166,14 @@ float4 main(InputType input) : SV_TARGET
 		freaquency *= lacunarity;
 	}
 	
-	//noise_height = (noise_height + 1) / 2;
-	
+	// normalise and increase contrast (this is a stand in for the cpu equivelent max-min height numbers)
 	noise_height = normaliseHeight(noise_height, min_noise_height, max_noise_height);
+	noise_height = contrast(noise_height, 1.8f);
+	
+	// apply falloff
+	ndc = ndc * 2 - 1;
+	noise_height *= lerp(1, 0, abs(ndc.x)*falloff.x);
+	noise_height *= lerp(1, 0, abs(ndc.y)*falloff.y);
 	
 	return float4(noise_height, noise_height, noise_height, 1);
 }

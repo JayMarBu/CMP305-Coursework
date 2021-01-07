@@ -14,6 +14,7 @@ cbuffer terrain_parameters_buffer : register(b0)
 {
 	float2 data_min;
 	float2 data_max;
+	float height;
 }
 
 // inputs
@@ -66,7 +67,7 @@ void main(uint3 gt_id : SV_GroupThreadID, uint3 dt_id : SV_DispatchThreadID)
 	{
 		// set the height of the vertex from the height map
 		float4 sampled_heightmap_point = in_heightmap.SampleLevel(in_sampler, out_height_uv, 0);
-		out_vertices[LIST_INDEX].position.y = 10*sampled_heightmap_point.r;
+		out_vertices[LIST_INDEX].position.y = height * sampled_heightmap_point.r;
 	}
 	
 	// GENERATE NORMALS .............................................................................................................................
@@ -75,10 +76,10 @@ void main(uint3 gt_id : SV_GroupThreadID, uint3 dt_id : SV_DispatchThreadID)
 	float texelSize = 1.0 / (mapSize);
 	
 	float4 h;
-	h[0] = in_heightmap.SampleLevel(in_sampler, out_height_uv + texelSize * float2(0, -1), 0).r * float4(1,10,1,1); // top
-	h[1] = in_heightmap.SampleLevel(in_sampler, out_height_uv + texelSize * float2(-1, 0), 0).r * float4(1, 10, 1, 1); //left
-	h[2] = in_heightmap.SampleLevel(in_sampler, out_height_uv + texelSize * float2(1, 0), 0).r * float4(1, 10, 1, 1); // right
-	h[3] = in_heightmap.SampleLevel(in_sampler, out_height_uv + texelSize * float2(0, 1), 0).r * float4(1, 10, 1, 1); // bottom
+	h[0] = in_heightmap.SampleLevel(in_sampler, out_height_uv + texelSize * float2(0, -1), 0).r * float4(1,height,1,1); // top
+	h[1] = in_heightmap.SampleLevel(in_sampler, out_height_uv + texelSize * float2(-1, 0), 0).r * float4(1, height, 1, 1); //left
+	h[2] = in_heightmap.SampleLevel(in_sampler, out_height_uv + texelSize * float2(1, 0), 0).r * float4(1, height, 1, 1); // right
+	h[3] = in_heightmap.SampleLevel(in_sampler, out_height_uv + texelSize * float2(0, 1), 0).r * float4(1, height, 1, 1); // bottom
 	
 	float3 n;
 	n.z = (h[0] - h[3]);

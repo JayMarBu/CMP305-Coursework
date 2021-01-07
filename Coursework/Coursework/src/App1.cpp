@@ -412,11 +412,21 @@ bool App1::render()
 	// Generate the view matrix based on the camera's position.
 	cam_.update();
 
+	renderer->setWireframeMode(false);
 	if (terrain_flags_ & GPU_NOISE_FLAG)
 		CreateNoise();
 
+	if (real_time_terrain_gen_)
+	{
+		gpfw::DeviceInfo d_info;
+		d_info.context = renderer->getDeviceContext();
+		d_info.device = renderer->getDevice();
+		gpfw::terrain::Generate(terrain_, d_info, generate_terrain_cs_, terrain_noise_map_);
+	}
+
 	depthPass();
 	shadowPass();
+	renderer->setWireframeMode(wireframeToggle);
 	waterPass();
 	scenePass();
 
@@ -728,7 +738,9 @@ void App1::scenePass()
 	if (render_cascade_textures_)
 		gpfw::cascade::RenderOrthoMeshes(cascade_info_, texture_shader_, s_info, cam_.getOrthoViewMatrix(), renderer->getOrthoMatrix());
 
+	renderer->setWireframeMode(false);
 	gui();
+	renderer->setWireframeMode(wireframeToggle);
 	renderer->endScene();
 }
 
@@ -780,14 +792,12 @@ void App1::gui()
 	// TERRAIN OPTIONS ............................................................................
 	if (ImGui::CollapsingHeader("Terrain Options"))
 	{
-		ID3D11ShaderResourceView* noise_gui_srv = nullptr;
-
 		if ((terrain_flags_ & CPU_NOISE_FLAG) && (terrain_flags_ & ~GPU_NOISE_FLAG))
-			noise_gui_srv = noise_texture_custom_->getShaderResourceView();
+			terrain_noise_map_ = noise_texture_custom_->getShaderResourceView();
 		else if ((terrain_flags_ & GPU_NOISE_FLAG) && (terrain_flags_ & ~CPU_NOISE_FLAG))
-			noise_gui_srv = noise_texture_->getShaderResourceView();
+			terrain_noise_map_ = noise_texture_->getShaderResourceView();
 
-		ImGui::Image((void*)noise_gui_srv, ImVec2(s_width_/4.5, s_width_/4.5));
+		ImGui::Image((void*)terrain_noise_map_, ImVec2(s_width_/4.5, s_width_/4.5));
 		if (terrain_flags_ & CPU_NOISE_FLAG)
 		{
 			if (ImGui::Button("Generate Noise Texture"))
@@ -842,16 +852,25 @@ void App1::gui()
 		ImGui::SliderFloat("##noise persistence", &noise_params_.persistance, 0.01f, 1.0f);
 		ImGui::Text("Noise lacunarity:");
 		ImGui::SliderFloat("##noise lacunarity", &noise_params_.lacunarity, 1.0f, 10.0f);
+		ImGui::Text("Noise falloff:");
+		ImGui::SliderFloat2("##noise falloff", noise_params_.falloff, 0.0f, 2.0f);
 		ImGui::Text("Seed:");
 		if (ImGui::InputInt("##random seed", &noise_params_.seed))
 			setOctaveOffsets(noise_params_.seed, noise_params_.octaves);
-
-		if (ImGui::Button("Generate Terrain Mesh"))
+		ImGui::Text("Terrain SETTINGS ..........................................");
+		ImGui::Text("Terrain Height:");
+		ImGui::SliderFloat("##terrain height", &terrain_.h_params.height, 1.f, 25.0f);
+		ImGui::Text("Generate Terrain real time");
+		ImGui::Checkbox("##realtime terrain gen", &real_time_terrain_gen_);
+		if(!real_time_terrain_gen_)
 		{
-			gpfw::DeviceInfo d_info;
-			d_info.context = renderer->getDeviceContext();
-			d_info.device = renderer->getDevice();
-			gpfw::terrain::Generate(terrain_, d_info, generate_terrain_cs_, textureMgr->getTexture(L"terrain_height_map"));
+			if (ImGui::Button("Generate Terrain Mesh"))
+			{
+				gpfw::DeviceInfo d_info;
+				d_info.context = renderer->getDeviceContext();
+				d_info.device = renderer->getDevice();
+				gpfw::terrain::Generate(terrain_, d_info, generate_terrain_cs_, terrain_noise_map_);
+			}
 		}
 	}
 

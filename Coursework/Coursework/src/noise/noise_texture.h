@@ -3,14 +3,15 @@
 
 struct NoiseParameters
 {
-	float debug_colours[3] = { 0,0,0 };
-	float offset[2] = { 0,0 };
-	float scale = 1.0f;
-	int octaves = 1;
+	float debug_colours[3]		= { 0,0,0 };
+	float offset[2]				= { 0,0 };
+	float scale					= 1.0f;
+	int octaves					= 1;
 	XMFLOAT2 octave_offsets[10] = { XMFLOAT2(0,0) };
-	float persistance = 0.5f;
-	float lacunarity = 2.0f;
-	int seed = 1800892;
+	float persistance			= 0.5f;
+	float lacunarity			= 2.0f;
+	int seed					= 1800892;
+	float falloff[2]			= { 1,1 };
 };
 
 class NoiseTexture

@@ -15,7 +15,6 @@
 #include "shaders/noise_shader/noise_shader.h"
 #include "shaders/compute_shaders/generate_terrain_cshader.h"
 #include "imGuIZMO.quat/imGuIZMOquat.h"
-#include "ImGuizmo-master/ImGuizmo.h"
 #include "improved_framework_classes/TerrainMesh.h"
 #include "entities/entity.h"
 #include "entities/terrain.h"
@@ -30,7 +29,6 @@ public:
 		GPU_NOISE_FLAG					= 0b0000000000000001,
 		CPU_NOISE_FLAG					= 0b0000000000000010,
 		GENERATING_CPU_NOISE_FLAG		= 0b0000000000000100,
-		REAL_TIME_TERRAIN_UPDATE_FLAG	= 0b0000000000001000
 	};
 public:
 
@@ -130,6 +128,8 @@ private:
 	float s_height_;
 
 	NoiseTexture* noise_texture_custom_;
+	bool real_time_terrain_gen_ = false;
+	ID3D11ShaderResourceView* terrain_noise_map_ = nullptr;
 
 	// DEBUG DATA ...................................................................................................................................
 	ID3D11ShaderResourceView* debug_render_ptr_;

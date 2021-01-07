@@ -1,5 +1,6 @@
 #include "noise_texture.h"
 #include "perlin_noise.h"
+#include "shaders/shader_utils.h"
 #include <random>
 
 NoiseTexture::NoiseTexture(ID3D11Device* device, const unsigned int w, const unsigned int h)
@@ -109,6 +110,12 @@ void NoiseTexture::setNoise(ID3D11DeviceContext* context, NoiseParameters np)
 		for (int j = 0; j < textureHeight; ++j)
 		{
 			float noise_height = normaliseHeight(Data[i + j * textureWidth].x, min_noise_height, max_noise_height);
+
+			float ndc_x = ((float)i / (float)textureWidth) * 2 - 1;
+			float ndc_y = ((float)j / (float)textureHeight) * 2 - 1;
+
+			noise_height *= gpfw::lerp(1.f, 0.f, abs(ndc_x)*np.falloff[0]);
+			noise_height *= gpfw::lerp(1.f, 0.f, abs(ndc_y)*np.falloff[1]);
 
 			Data[i + j * textureWidth] = XMFLOAT4(noise_height, noise_height, noise_height, 1);
 		}

@@ -40,7 +40,7 @@ namespace gpfw
 		// generate terrain mesh on compute shader
 		void Generate(TerrainChunk& t, DeviceInfo d_info, GenerateTerrainCShader* cs, ID3D11ShaderResourceView* height_map, CSDimentions dim)
 		{
-			t.mesh->ApplyHeightMap(d_info.device, d_info.context, cs, height_map, dim.x, dim.y, dim.z);
+			t.mesh->ApplyHeightMap(d_info.device, d_info.context, cs, height_map, t.h_params, dim.x, dim.y, dim.z);
 		}
 
 	}

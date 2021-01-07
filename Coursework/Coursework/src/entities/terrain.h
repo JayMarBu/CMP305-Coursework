@@ -10,6 +10,11 @@
 
 namespace gpfw
 {
+	struct HeightParameters
+	{
+		float height = 10.0f;
+	};
+
 	// TERRAIN CHUNK STRUCT .........................................................................................................................
 	struct TerrainChunk
 	{
@@ -26,6 +31,8 @@ namespace gpfw
 		// pointer to application class' texture manager
 		// for ease of access
 		TextureManager* texture_manager;
+
+		HeightParameters h_params;
 	};
 
 	// COMPUTE SHADER DIMENSIONS PACKAGE ............................................................................................................

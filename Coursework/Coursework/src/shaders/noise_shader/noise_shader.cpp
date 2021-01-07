@@ -92,7 +92,7 @@ void NoiseShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const 
 	noisePtr->octaves = n_params.octaves;
 	noisePtr->persistance = n_params.persistance;
 	noisePtr->lacunarity = n_params.lacunarity;
-	noisePtr->padding = XMFLOAT2(0,0);
+	noisePtr->falloff = XMFLOAT2(n_params.falloff[0], n_params.falloff[1]);
 	deviceContext->Unmap(noiseBuffer, 0);
 	deviceContext->PSSetConstantBuffers(0, 2, &noiseBuffer);
 

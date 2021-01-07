@@ -32,7 +32,7 @@ public:
 
 		float persistance;
 		float lacunarity;
-		XMFLOAT2 padding;
+		XMFLOAT2 falloff;
 	};
 
 	NoiseShader(ID3D11Device* device, HWND hwnd);

@@ -6,6 +6,11 @@
 using namespace std;
 using namespace DirectX;
 
+namespace gpfw
+{
+	struct HeightParameters;
+}
+
 class GenerateTerrainCShader : public BaseShader
 {
 public:
@@ -23,6 +28,8 @@ public:
 	{
 		XMFLOAT2 data_min;
 		XMFLOAT2 data_max;
+		float height;
+		XMFLOAT3 padding;
 	};
 
 	// CONSTRUCTOR & DECONSTRUCTOR ..................................................................................................................
@@ -34,7 +41,7 @@ public:
 
 	void unbind(ID3D11DeviceContext* dc);
 
-	void RunComputeShader(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* in_data, ID3D11ShaderResourceView* height_map, XMFLOAT2 data_min, XMFLOAT2 data_max, int x, int y, int z);
+	void RunComputeShader(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* in_data, ID3D11ShaderResourceView* height_map, XMFLOAT2 data_min, XMFLOAT2 data_max, gpfw::HeightParameters h_params, int x, int y, int z);
 
 	// GETTER METHODS ...............................................................................................................................
 	inline ID3D11Buffer* getVertexOutBuffer() { return vertex_out_buffer_; }

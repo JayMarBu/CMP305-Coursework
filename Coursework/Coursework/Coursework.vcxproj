@@ -175,7 +175,6 @@
     <ClCompile Include="src\shaders\blur_shaders\vertical_blur\vertical_blur_shader.cpp" />
     <ClCompile Include="src\shaders\compute_shaders\generate_terrain_cshader.cpp" />
     <ClCompile Include="src\shaders\noise_shader\noise_shader.cpp" />
-    <ClCompile Include="src\shaders\perlin_noise\perlin_noise_shader.cpp" />
     <ClCompile Include="src\shaders\shadow_shader\shadow_shader.cpp" />
     <ClCompile Include="src\entities\entity.cpp" />
     <ClCompile Include="src\Main.cpp" />
@@ -197,7 +196,6 @@
     <ClInclude Include="src\shaders\blur_shaders\vertical_blur\vertical_blur_shader.h" />
     <ClInclude Include="src\shaders\compute_shaders\generate_terrain_cshader.h" />
     <ClInclude Include="src\shaders\noise_shader\noise_shader.h" />
-    <ClInclude Include="src\shaders\perlin_noise\perlin_noise_shader.h" />
     <ClInclude Include="src\shaders\shadow_shader\shadow_shader.h" />
     <ClInclude Include="src\entities\entity.h" />
     <ClInclude Include="src\shaders\depth_shader\depth_shader.h" />
@@ -252,7 +250,7 @@
     </FxCompile>
     <FxCompile Include="src\shaders\compute_shaders\generate_terrain_cs.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
