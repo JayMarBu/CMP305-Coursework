@@ -100,7 +100,15 @@ void NoiseTexture::setNoise(ID3D11DeviceContext* context, NoiseParameters np)
 			max_noise_height = (max_noise_height < noise_height) ? noise_height : max_noise_height;
 			min_noise_height = (min_noise_height > noise_height) ? noise_height : min_noise_height;
 
-			noise_height = normaliseHeight(noise_height, min_noise_height, max_noise_height);
+			Data[i + j * textureWidth] = XMFLOAT4(noise_height, noise_height, noise_height, 1);
+		}
+	}
+
+	for (int i = 0; i < textureWidth; ++i)
+	{
+		for (int j = 0; j < textureHeight; ++j)
+		{
+			float noise_height = normaliseHeight(Data[i + j * textureWidth].x, min_noise_height, max_noise_height);
 
 			Data[i + j * textureWidth] = XMFLOAT4(noise_height, noise_height, noise_height, 1);
 		}

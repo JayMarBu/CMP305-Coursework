@@ -93,6 +93,17 @@ float inoise(float2 p)
 	f.y);
 } 
 
+float normaliseHeight(float data, float data_min, float data_max)
+{
+	if (data < data_min)
+		data = data_min;
+	
+	if (data > data_max)
+		data = data_max;
+	
+	return (data - data_min) / (data_max - data_min);
+}
+
 // MAIN FUNCTION ....................................................................................................................................
 float4 main(InputType input) : SV_TARGET
 {
@@ -119,14 +130,39 @@ float4 main(InputType input) : SV_TARGET
 	ndc.x = (((input.screen_pos.x / input.screen_pos.w) / 2) + 0.5);
 	ndc.y = (((-input.screen_pos.y / input.screen_pos.w) / 2) + 0.5);
 	
-	// apply user defined variables
-	float2 noise_inputs = ndc/scale;
-	noise_inputs.x += offset.x;
-	noise_inputs.y += offset.y;
 	
-	// generate noise
-	float noise_val = inoise(noise_inputs);
 	
-	return float4(noise_val, noise_val, noise_val, 1);
+	float max_noise_height = 0;
+
+	float min_noise_height = 0;
+	
+	float amplitude = 1;
+	float freaquency = 1;
+
+	float noise_height = 0;
+	
+	for (int i = 0; i < octaves; i++)
+	{
+		// apply user defined variables
+		float2 noise_inputs = ndc / scale * freaquency + octave_offsets[i] + offset;
+		//noise_inputs.x += offset.x;
+		//noise_inputs.y += offset.y;
+	
+		// generate noise
+		float noise_val = inoise(noise_inputs);
+		float2 max_min_noise_val = float2(-0.8, 0.8);
+		
+		min_noise_height += max_min_noise_val.x * amplitude;
+		max_noise_height += max_min_noise_val.y * amplitude;
+		noise_height += noise_val * amplitude;
+		amplitude *= persistance;
+		freaquency *= lacunarity;
+	}
+	
+	//noise_height = (noise_height + 1) / 2;
+	
+	noise_height = normaliseHeight(noise_height, min_noise_height, max_noise_height);
+	
+	return float4(noise_height, noise_height, noise_height, 1);
 }
 
